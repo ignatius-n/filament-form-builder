@@ -1,5 +1,5 @@
 <x-mail::message>
-# {{ __('packstub-form-builder::form-builder.mail.heading', ['form' => $form->name]) }}
+# {{ __('packstub-form-builder::form-builder.mail.heading', ['form' => $form->name]) }}{{ isset($submission) && $submission->number ? ' '.$submission->reference() : '' }}
 
 <x-mail::table>
 | {{ __('packstub-form-builder::form-builder.mail.field') }} | {{ __('packstub-form-builder::form-builder.mail.value') }} |

@@ -8,7 +8,7 @@
     <div class="fb-choices">
         @foreach ($field->choices() as $choiceValue => $choiceLabel)
             <label class="fb-choice" for="{{ $inputId }}-{{ $loop->index }}">
-                <input type="radio" id="{{ $inputId }}-{{ $loop->index }}" name="{{ $field->key }}" value="{{ $choiceValue }}" @checked((string) $value === (string) $choiceValue) @if ($field->required) required @endif>
+                <input type="radio" id="{{ $inputId }}-{{ $loop->index }}" name="{{ $field->key }}" value="{{ $choiceValue }}" @checked((string) $value === (string) $choiceValue) @if ($field->required && ! $field->isConditional()) required @endif>
                 <span>{{ $choiceLabel }}</span>
             </label>
         @endforeach

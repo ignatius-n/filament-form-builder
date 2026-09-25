@@ -2,11 +2,14 @@
 
 namespace Packstub\FormBuilder;
 
+use Filament\Facades\Filament;
+use Illuminate\Database\Eloquent\Model;
 use Packstub\FormBuilder\Contracts\SubmissionSink;
 use Packstub\FormBuilder\Fields\FieldType;
 use Packstub\FormBuilder\Fields\FieldTypeRegistry;
 use Packstub\FormBuilder\Models\Form;
 use Packstub\FormBuilder\Models\FormSubmission;
+use Packstub\FormBuilder\Models\WebhookDelivery;
 use Packstub\FormBuilder\Submissions\SubmissionContext;
 use Packstub\FormBuilder\Submissions\SubmissionResult;
 use Packstub\FormBuilder\Submissions\Submitter;
@@ -28,6 +31,64 @@ class FormBuilder
     public static function submissionModel(): string
     {
         return config('packstub-form-builder.models.submission', FormSubmission::class);
+    }
+
+    /** @return class-string<WebhookDelivery> */
+    public static function webhookDeliveryModel(): string
+    {
+        return config('packstub-form-builder.models.webhook_delivery', WebhookDelivery::class);
+    }
+
+    // ------------------------------------------------------------------
+    // Tenancy
+    // ------------------------------------------------------------------
+
+    /**
+     * The column on the forms table that holds the tenant key, or null when
+     * the plugin is not tenant-aware (config "tenancy.enabled").
+     */
+    public static function tenantColumn(): ?string
+    {
+        if (! config('packstub-form-builder.tenancy.enabled', false)) {
+            return null;
+        }
+
+        return (string) config('packstub-form-builder.tenancy.column', 'tenant_id');
+    }
+
+    /** @return class-string<Model>|null */
+    public static function tenantModel(): ?string
+    {
+        $model = config('packstub-form-builder.tenancy.model');
+
+        return is_string($model) && $model !== '' ? $model : null;
+    }
+
+    /**
+     * The key of the current tenant: the one resolved by config
+     * "tenancy.resolver", else Filament's current tenant, else null.
+     */
+    public static function currentTenantKey(): int|string|null
+    {
+        if (static::tenantColumn() === null) {
+            return null;
+        }
+
+        $resolver = config('packstub-form-builder.tenancy.resolver');
+
+        if (is_callable($resolver)) {
+            $tenant = $resolver();
+        } elseif (class_exists(Filament::class)) {
+            $tenant = Filament::getTenant();
+        } else {
+            $tenant = null;
+        }
+
+        if ($tenant instanceof Model) {
+            return $tenant->getKey();
+        }
+
+        return is_int($tenant) || is_string($tenant) ? $tenant : null;
     }
 
     public function fieldTypes(): FieldTypeRegistry

@@ -9,15 +9,25 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
+use Packstub\FormBuilder\Commands\PruneCommand;
 use Packstub\FormBuilder\Events\SubmissionReceived;
 use Packstub\FormBuilder\Fields\FieldTypeRegistry;
+use Packstub\FormBuilder\Http\Controllers\DownloadFileController;
+use Packstub\FormBuilder\Http\Controllers\EmbedScriptController;
 use Packstub\FormBuilder\Http\Controllers\FormDefinitionController;
 use Packstub\FormBuilder\Http\Controllers\ShowFormController;
 use Packstub\FormBuilder\Http\Controllers\SubmitFormController;
+use Packstub\FormBuilder\Http\Controllers\UnlockFormController;
+use Packstub\FormBuilder\Http\Controllers\ValidateFormController;
 use Packstub\FormBuilder\Listeners\DispatchToSinks;
+use Packstub\FormBuilder\Listeners\DispatchWebhook;
+use Packstub\FormBuilder\Listeners\SendAutoresponder;
+use Packstub\FormBuilder\Listeners\SendPanelNotifications;
 use Packstub\FormBuilder\Listeners\SendSubmissionNotifications;
 use Packstub\FormBuilder\Livewire\FormBuilderForm;
 use Packstub\FormBuilder\Livewire\LivewireAssets;
+use Packstub\FormBuilder\Models\FormSubmission;
+use Packstub\FormBuilder\Uploads\Uploads;
 use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -33,7 +43,8 @@ class FormBuilderServiceProvider extends PackageServiceProvider
             ->hasConfigFile()
             ->hasViews(static::$name)
             ->hasTranslations()
-            ->hasMigration('create_form_builder_tables')
+            ->hasCommand(PruneCommand::class)
+            ->hasMigrations(['create_form_builder_tables', 'add_logic_and_webhooks_to_form_builder_tables'])
             ->hasInstallCommand(function (InstallCommand $command): void {
                 $command
                     ->publishConfigFile()
@@ -55,7 +66,12 @@ class FormBuilderServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         Event::listen(SubmissionReceived::class, SendSubmissionNotifications::class);
+        Event::listen(SubmissionReceived::class, SendAutoresponder::class);
+        Event::listen(SubmissionReceived::class, SendPanelNotifications::class);
+        Event::listen(SubmissionReceived::class, DispatchWebhook::class);
         Event::listen(SubmissionReceived::class, DispatchToSinks::class);
+
+        FormBuilder::submissionModel()::deleting(fn (FormSubmission $submission) => Uploads::deleteFor($submission));
 
         Blade::componentNamespace('Packstub\\FormBuilder\\View\\Components', 'form-builder');
         Livewire::component('form-builder', FormBuilderForm::class);
@@ -83,15 +99,34 @@ class FormBuilderServiceProvider extends PackageServiceProvider
         $prefix = trim((string) config('packstub-form-builder.routes.prefix', 'forms'), '/');
         $middleware = (array) config('packstub-form-builder.routes.middleware', ['web']);
         $throttle = config('packstub-form-builder.submissions.throttle', '10,1');
+        $throttled = array_values(array_filter([...$middleware, $throttle ? "throttle:{$throttle}" : null]));
 
-        Route::prefix($prefix)->name('packstub-form-builder.')->group(function () use ($middleware, $throttle): void {
+        Route::prefix($prefix)->name('packstub-form-builder.')->group(function () use ($middleware, $throttled): void {
+            Route::get('files/{submission}/{field}/{index?}', DownloadFileController::class)
+                ->where('submission', '[0-9]+')
+                ->where('index', '[0-9]+')
+                ->name('file');
+
             Route::post('{form}', SubmitFormController::class)
-                ->middleware(array_values(array_filter([...$middleware, $throttle ? "throttle:{$throttle}" : null])))
+                ->middleware($throttled)
                 ->name('submit');
+
+            Route::post('{form}/validate', ValidateFormController::class)
+                ->middleware($middleware)
+                ->name('validate');
+
+            Route::post('{form}/unlock', UnlockFormController::class)
+                ->middleware($throttled)
+                ->name('unlock');
 
             Route::get('{form}/definition', FormDefinitionController::class)
                 ->middleware($middleware)
                 ->name('definition');
+
+            if (config('packstub-form-builder.routes.embed', true)) {
+                Route::get('{form}/embed.js', EmbedScriptController::class)
+                    ->name('embed');
+            }
 
             if (config('packstub-form-builder.routes.page', true)) {
                 Route::get('{form}', ShowFormController::class)

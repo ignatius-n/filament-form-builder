@@ -22,6 +22,11 @@ class RadioField extends FieldType
         return 'heroicon-o-check-circle';
     }
 
+    public function hasPlaceholder(): bool
+    {
+        return false;
+    }
+
     public function rules(Field $field): array
     {
         return $this->choiceRules($field);

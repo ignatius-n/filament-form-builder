@@ -5,6 +5,7 @@ namespace Packstub\FormBuilder\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Packstub\FormBuilder\Fields\Field;
@@ -19,10 +20,12 @@ use Packstub\FormBuilder\FormBuilder;
  * @property ?int $user_id
  * @property ?string $ip
  * @property ?string $user_agent
+ * @property ?string $fingerprint
  * @property ?string $source_url
  * @property string $channel
  * @property ?array<string, mixed> $meta
  * @property ?Carbon $read_at
+ * @property ?int $number
  * @property Form $form
  */
 class FormSubmission extends Model
@@ -40,6 +43,7 @@ class FormSubmission extends Model
             'fields' => 'array',
             'meta' => 'array',
             'read_at' => 'datetime',
+            'number' => 'integer',
         ];
     }
 
@@ -56,6 +60,11 @@ class FormSubmission extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(config('auth.providers.users.model'), 'user_id');
+    }
+
+    public function webhookDeliveries(): HasMany
+    {
+        return $this->hasMany(FormBuilder::webhookDeliveryModel(), 'submission_id');
     }
 
     public function scopeUnread(Builder $query): Builder
@@ -75,6 +84,14 @@ class FormSubmission extends Model
         return $this;
     }
 
+    /**
+     * "#42": the sequential number within the form, else the id.
+     */
+    public function reference(): string
+    {
+        return '#'.($this->number ?? $this->getKey());
+    }
+
     public function value(string $key, mixed $default = null): mixed
     {
         return data_get($this->data, $key, $default);
@@ -89,23 +106,34 @@ class FormSubmission extends Model
     }
 
     /**
+     * The field a stored value belongs to: the form's current one, else one
+     * rebuilt from the label and type recorded with the submission.
+     */
+    public function fieldFor(string $key): Field
+    {
+        $form = $this->relationLoaded('form') || $this->form_id ? $this->form : null;
+
+        if (($field = $form?->allInputFields()->get($key)) !== null) {
+            return $field;
+        }
+
+        $registry = app(FieldTypeRegistry::class);
+        $type = $registry->find((string) data_get($this->fields, "{$key}.type", 'text')) ?? $registry->get('text');
+
+        return new Field($key, $type, $this->label($key));
+    }
+
+    /**
      * Every value as text, keyed by field key: ['email' => ['label' => 'Email', 'value' => 'a@b.c']].
      *
      * @return array<string, array{label: string, value: string}>
      */
     public function formatted(): array
     {
-        $registry = app(FieldTypeRegistry::class);
-        $form = $this->relationLoaded('form') || $this->form_id ? $this->form : null;
         $rows = [];
 
         foreach ($this->data ?? [] as $key => $value) {
-            $field = $form?->field($key);
-
-            if ($field === null) {
-                $type = $registry->find((string) data_get($this->fields, "{$key}.type", 'text')) ?? $registry->get('text');
-                $field = new Field($key, $type, $this->label($key));
-            }
+            $field = $this->fieldFor($key);
 
             $rows[$key] = [
                 'label' => $this->label($key),
@@ -127,5 +155,31 @@ class FormSubmission extends Model
             ->take($limit)
             ->map(fn (string $value): string => Str::limit($value, 40))
             ->implode(' · ');
+    }
+
+    /**
+     * The submission as a webhook or sink payload.
+     *
+     * @return array<string, mixed>
+     */
+    public function toPayload(bool $withMeta = true): array
+    {
+        $form = $this->form;
+
+        return [
+            'id' => $this->getKey(),
+            'number' => $this->number,
+            'form' => ['id' => $form->getKey(), 'slug' => $form->slug, 'name' => $form->name],
+            'submitted_at' => ($this->created_at ?? now())->toIso8601String(),
+            'data' => $this->data ?? [],
+            'labels' => collect($this->fields ?? [])->map(fn (array $meta): string => (string) ($meta['label'] ?? ''))->all(),
+            'meta' => $withMeta ? array_filter([
+                'ip' => $this->ip,
+                'user_agent' => $this->user_agent,
+                'source_url' => $this->source_url,
+                'channel' => $this->channel,
+                'user_id' => $this->user_id,
+            ], fn ($value): bool => $value !== null) : null,
+        ];
     }
 }

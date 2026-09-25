@@ -7,7 +7,7 @@ use Packstub\FormBuilder\Filament\Resources\FormResource\Pages\CreateForm;
 use Packstub\FormBuilder\Filament\Resources\FormResource\Pages\EditForm;
 use Packstub\FormBuilder\Filament\Resources\FormResource\Pages\ListForms;
 use Packstub\FormBuilder\Filament\Resources\FormResource\RelationManagers\SubmissionsRelationManager;
-use Packstub\FormBuilder\Filament\SubmissionsCsv;
+use Packstub\FormBuilder\Filament\SubmissionsExport;
 use Packstub\FormBuilder\Models\Form;
 use Packstub\FormBuilder\Models\FormSubmission;
 use Packstub\FormBuilder\Submissions\Submitter;
@@ -79,8 +79,8 @@ it('edits a form and shows the embed snippets', function (): void {
 
     livewire(EditForm::class, ['record' => $form->getRouteKey()])
         ->assertOk()
-        ->assertSee('<x-form-builder::form form="contact" />')
-        ->assertSee('<livewire:form-builder form="contact" />')
+        ->assertSeeHtml('&lt;x-form-builder::form form&#61;&#34;contact&#34; /&gt;')
+        ->assertSeeHtml('&lt;livewire:form-builder form&#61;&#34;contact&#34; /&gt;')
         ->assertSee(url('/forms/contact/definition'))
         ->fillForm(['submit_label' => 'Go', 'is_active' => false])
         ->call('save')
@@ -127,16 +127,17 @@ it('exports submissions as CSV', function (): void {
         ->assertFileDownloaded();
 
     $handle = fopen('php://memory', 'w+');
-    SubmissionsCsv::write($form, $form->submissions()->getQuery(), $handle);
+    SubmissionsExport::write($form, $form->submissions()->getQuery(), $handle);
     rewind($handle);
     $rows = array_map('str_getcsv', array_filter(explode("\n", stream_get_contents($handle))));
 
-    expect($rows[0])->toBe(['id', 'submitted_at', 'Name', 'Email', 'Topic', 'Message', 'Newsletter', 'Interests', 'Source', 'legacy', 'source_url', 'ip', 'user_id'])
-        ->and($rows[1][2])->toBe('Ada Lovelace')
-        ->and($rows[1][6])->toBe('Yes')
-        ->and($rows[1][7])->toBe('PHP, JavaScript')
-        ->and($rows[2][2])->toBe('Old')
-        ->and($rows[2][9])->toBe('x');
+    expect($rows[0])->toBe(['number', 'id', 'submitted_at', 'Name', 'Email', 'Topic', 'Message', 'Newsletter', 'Interests', 'Source', 'legacy', 'source_url', 'ip', 'user_id'])
+        ->and($rows[1][0])->toBe('1')
+        ->and($rows[1][3])->toBe('Ada Lovelace')
+        ->and($rows[1][7])->toBe('Yes')
+        ->and($rows[1][8])->toBe('PHP, JavaScript')
+        ->and($rows[2][3])->toBe('Old')
+        ->and($rows[2][10])->toBe('x');
 });
 
 it('hides the resource when the plugin says no', function (): void {

@@ -22,6 +22,27 @@ abstract class InputField extends FieldType
         return 'packstub-form-builder::fields.input';
     }
 
+    /**
+     * The HTML attributes of the <input> in the plain renderer, beyond the
+     * common ones (id, name, value, placeholder, required).
+     *
+     * @return array<string, string|int|float|bool|null>
+     */
+    public function inputAttributes(Field $field): array
+    {
+        $attributes = [];
+
+        if (filled($max = $field->option('max_length'))) {
+            $attributes['maxlength'] = (int) $max;
+        }
+
+        if (filled($min = $field->option('min_length'))) {
+            $attributes['minlength'] = (int) $min;
+        }
+
+        return $attributes;
+    }
+
     public function editorSchema(): array
     {
         return [

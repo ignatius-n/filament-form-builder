@@ -10,6 +10,7 @@ return new class extends Migration
     {
         $forms = config('packstub-form-builder.tables.forms', 'form_builder_forms');
         $submissions = config('packstub-form-builder.tables.submissions', 'form_builder_submissions');
+        $deliveries = config('packstub-form-builder.tables.webhook_deliveries', 'form_builder_webhook_deliveries');
 
         Schema::create($forms, function (Blueprint $table): void {
             $table->id();
@@ -29,6 +30,8 @@ return new class extends Migration
             $table->timestamp('closes_at')->nullable();
             // Extra per-form settings (honeypot, min_seconds, require_login...).
             $table->json('settings')->nullable();
+            // The tenant the form belongs to, when the plugin is tenant-aware (config "tenancy").
+            $table->string(config('packstub-form-builder.tenancy.column', 'tenant_id'), 64)->nullable()->index();
             $table->timestamps();
         });
 
@@ -47,14 +50,37 @@ return new class extends Migration
             $table->string('channel', 16)->default('web');
             $table->json('meta')->nullable();
             $table->timestamp('read_at')->nullable()->index();
+            // The sequential number of the submission within its form (#42).
+            $table->unsignedInteger('number')->nullable();
+            // The visitor's anonymous id (user id, or a hash of IP + user agent), for "one per person".
+            $table->string('fingerprint', 64)->nullable();
             $table->timestamps();
 
             $table->index(['form_id', 'created_at']);
+            $table->index(['form_id', 'fingerprint']);
+        });
+
+        Schema::create($deliveries, function (Blueprint $table) use ($forms, $submissions): void {
+            $table->id();
+            $table->foreignId('form_id')->constrained($forms)->cascadeOnDelete();
+            $table->foreignId('submission_id')->nullable()->constrained($submissions)->nullOnDelete();
+            $table->string('url', 2048);
+            $table->string('event', 64)->default('submission.received');
+            $table->string('status', 16)->default('pending')->index();
+            $table->unsignedSmallInteger('attempts')->default(0);
+            $table->unsignedSmallInteger('response_status')->nullable();
+            $table->text('response_body')->nullable();
+            $table->text('error')->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamp('next_attempt_at')->nullable()->index();
+            $table->timestamps();
         });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists(config('packstub-form-builder.tables.webhook_deliveries', 'form_builder_webhook_deliveries'));
         Schema::dropIfExists(config('packstub-form-builder.tables.submissions', 'form_builder_submissions'));
         Schema::dropIfExists(config('packstub-form-builder.tables.forms', 'form_builder_forms'));
     }

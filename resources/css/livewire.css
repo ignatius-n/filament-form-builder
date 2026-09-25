@@ -1,9 +1,10 @@
 /*
  * The stylesheet of the Livewire renderer: the Filament components the
- * built-in field types render (text input, textarea, select, radio,
- * checkbox, checkbox list, date picker, text, button, grid and the field
- * wrapper), compiled from Filament's own source files without the rest of
- * the panel theme. Rebuild with `npm run build` after a Filament update;
+ * built-in field types render (inputs, textarea, select, radio, checkbox
+ * and checkbox list, toggle, toggle buttons, tags, date and time pickers,
+ * file upload, colour picker, rich editor, text, button, grid, section,
+ * wizard and the field wrapper), compiled from Filament's own source files
+ * without the rest of the panel theme. Rebuild with `npm run build` after a Filament update;
  * LivewireStylesheetTest checks that every class the renderer prints has a
  * rule here.
  *
@@ -44,6 +45,19 @@
 @import '../../vendor/filament/forms/resources/css/components/radio.css' layer(components);
 @import '../../vendor/filament/forms/resources/css/components/checkbox-list.css' layer(components);
 @import '../../vendor/filament/forms/resources/css/components/date-time-picker.css' layer(components);
+@import '../../vendor/filament/forms/resources/css/components/toggle-buttons.css' layer(components);
+@import '../../vendor/filament/forms/resources/css/components/tags-input.css' layer(components);
+@import '../../vendor/filament/forms/resources/css/components/file-upload.css' layer(components);
+@import '../../vendor/filament/forms/resources/css/components/color-picker.css' layer(components);
+@import '../../vendor/filament/forms/resources/css/components/rich-editor.css' layer(components);
+@import '../../vendor/filament/support/resources/css/components/toggle.css' layer(components);
+@import '../../vendor/filament/support/resources/css/components/badge.css' layer(components);
+@import '../../vendor/filament/support/resources/css/components/section.css' layer(components);
+@import '../../vendor/filament/support/resources/css/components/modal.css' layer(components);
+@import '../../vendor/filament/support/resources/css/components/tooltip.css' layer(components);
+@import '../../vendor/filament/schemas/resources/css/components/section.css' layer(components);
+@import '../../vendor/filament/schemas/resources/css/components/wizard.css' layer(components);
+@import '../../vendor/filament/schemas/resources/css/components/actions.css' layer(components);
 
 @variant dark (&:where(.dark, .dark *));
 

@@ -5,6 +5,7 @@ namespace Packstub\FormBuilder\Fields\Types;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Packstub\FormBuilder\Fields\Field;
+use Packstub\FormBuilder\Fields\ValidationRules;
 
 class NumberField extends InputField
 {
@@ -16,6 +17,11 @@ class NumberField extends InputField
     public function icon(): string
     {
         return 'heroicon-o-hashtag';
+    }
+
+    public function ruleCategory(): ?string
+    {
+        return ValidationRules::CATEGORY_NUMBER;
     }
 
     public function inputType(): string
@@ -37,6 +43,16 @@ class NumberField extends InputField
                 ->numeric()
                 ->placeholder('1'),
         ];
+    }
+
+    public function inputAttributes(Field $field): array
+    {
+        return array_filter([
+            'min' => $field->option('min'),
+            'max' => $field->option('max'),
+            'step' => $field->option('step') ?: 'any',
+            'inputmode' => 'decimal',
+        ], fn ($value): bool => $value !== null && $value !== '');
     }
 
     public function rules(Field $field): array

@@ -22,6 +22,16 @@ class CheckboxesField extends FieldType
         return 'heroicon-o-list-bullet';
     }
 
+    public function hasPlaceholder(): bool
+    {
+        return false;
+    }
+
+    public function hasDefault(): bool
+    {
+        return false;
+    }
+
     public function acceptsMultiple(): bool
     {
         return true;
@@ -35,6 +45,11 @@ class CheckboxesField extends FieldType
     public function elementRules(Field $field): array
     {
         return $this->choiceRules($field);
+    }
+
+    public function comparableValue(mixed $value, Field $field): mixed
+    {
+        return $value === null || $value === '' ? [] : array_values((array) $value);
     }
 
     public function normalize(mixed $value, Field $field): mixed

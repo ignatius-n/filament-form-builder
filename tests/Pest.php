@@ -81,3 +81,50 @@ function contactInput(Form $form, array $overrides = []): array
         ...$overrides,
     ];
 }
+
+function section(string $label, array $fields, array $data = []): array
+{
+    return ['type' => 'section', 'data' => ['label' => $label, 'fields' => $fields, ...$data]];
+}
+
+function wizardForm(array $settings = ['mode' => 'wizard']): Form
+{
+    return Form::query()->create([
+        'name' => 'Registration',
+        'slug' => 'registration',
+        'settings' => $settings,
+        'fields' => [
+            field('paragraph', 'Intro', ['text' => 'Welcome']),
+            section('Attendee', [
+                field('text', 'Name', ['required' => true]),
+                field('email', 'Email', ['required' => true]),
+            ], ['description' => 'Who is coming']),
+            section('Ticket', [
+                field('radio', 'Type', ['key' => 'type', 'choices' => ['free' => 'Free', 'paid' => 'Paid'], 'required' => true]),
+                field('text', 'Voucher', ['key' => 'voucher']),
+            ]),
+            section('Payment', [
+                field('text', 'Card holder', ['key' => 'holder', 'required' => true]),
+            ], ['visibility' => 'when', 'visibility_rules' => [['field' => 'type', 'operator' => 'equals', 'value' => 'paid']]]),
+            section('Hidden', [field('text', 'Ghost', ['key' => 'ghost'])], ['hidden' => true]),
+        ],
+    ]);
+}
+
+function conditionalForm(): Form
+{
+    return Form::query()->create([
+        'name' => 'Conditional',
+        'slug' => 'conditional',
+        'fields' => [
+            field('radio', 'Attendance', ['key' => 'attendance', 'choices' => ['in_person' => 'In person', 'virtual' => 'Virtual'], 'required' => true]),
+            field('select', 'T-shirt', ['key' => 'tshirt', 'choices' => ['s' => 'S', 'm' => 'M'], 'required' => true,
+                'visibility' => 'when', 'visibility_rules' => [['field' => 'attendance', 'operator' => 'equals', 'value' => 'in_person']]]),
+            field('text', 'Allergies', ['key' => 'allergies', 'required' => true,
+                'visibility' => 'when', 'visibility_rules' => [['field' => 'tshirt', 'operator' => 'is_not_empty']]]),
+            field('text', 'Company', ['key' => 'company', 'required' => true,
+                'requirement' => 'when', 'requirement_rules' => [['field' => 'attendance', 'operator' => 'equals', 'value' => 'virtual']]]),
+            field('text', 'Never', ['key' => 'never', 'hidden' => true, 'required' => true]),
+        ],
+    ]);
+}

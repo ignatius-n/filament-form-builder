@@ -5,6 +5,7 @@ namespace Packstub\FormBuilder\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Packstub\FormBuilder\FormBuilder;
+use Packstub\FormBuilder\Submissions\Captcha;
 use Packstub\FormBuilder\Submissions\ProtectionToken;
 use Packstub\FormBuilder\Submissions\SpamGuard;
 
@@ -18,12 +19,19 @@ class FormDefinitionController
     {
         $form = FormBuilder::formModel()::query()->where('slug', $form)->firstOrFail();
 
+        if ($form->isPrivate() && ! $request->hasValidSignature()) {
+            abort(403, __('packstub-form-builder::form-builder.frontend.private'));
+        }
+
         return response()->json([
             ...$form->toDefinition(),
             'protection' => [
                 'token_field' => $tokens->field(),
                 'token' => $tokens->make($form),
                 'honeypot_field' => $form->usesHoneypot() ? $spam->honeypotField() : null,
+                'password' => $form->password() !== null,
+                'unlock_url' => $form->password() !== null ? route('packstub-form-builder.unlock', $form) : null,
+                'captcha' => $form->captcha() !== null ? ['provider' => $form->captcha(), 'site_key' => Captcha::siteKey($form->captcha()), 'field' => Captcha::responseField($form->captcha())] : null,
             ],
         ])->header('Cache-Control', 'no-store');
     }

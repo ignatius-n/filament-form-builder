@@ -16,13 +16,14 @@ Build forms in your Filament panel, put them on your site with one Blade tag, a 
 
 ## Features
 
-- **[Builder in the panel](#building-a-form)** — a Forms resource with a block per field type: text, email, phone, URL, number, long text, dropdown, radio buttons, checkbox, checkbox list, date, hidden, heading and paragraph. Every field has a label, key, placeholder, help text, default, required flag, width and any extra Laravel validation rule you type in.
-- **[Three ways to render](#rendering-a-form)** — a plain Blade component that works on cached and session-less pages, a Livewire component with Filament fields and in-place validation, and a JSON API for SPAs and mobile apps. All three go through the same validation and storage.
-- **[Submissions](#submissions)** — stored with the values, the page they came from and the labels at the time, listed per form with a details slide-over, read / unread state, filters, bulk actions and a CSV export. Unread counts on the navigation item.
-- **[Notifications and sinks](#notifications-and-sinks)** — an email per submission to any list of addresses, a `SubmissionReceived` event, and a `SubmissionSink` contract for the CRM, webhook or mailing list you want to feed.
-- **[Spam protection without a captcha](#spam-protection)** — a honeypot, a time trap (an encrypted token issued with the form) and a per-IP rate limit. Bots see the success message; nothing is stored.
-- **[Availability](#settings)** — a success message or a redirect, an active switch, an opening and closing date, an optional login requirement, and a "do not store" mode for forms that should only be emailed.
-- **[Extensible](#extending)** — write a field type class with its own settings, rules and views; swap the models and table names; submit from code with `FormBuilder::submit()`.
+- **[Builder in the panel](#building-a-form)** — a Forms resource with 28 field types: text, email, phone, URL, number, amount, long text, rich text, dropdown, multi-select, radio buttons, toggle buttons, checkbox, toggle, checkbox list, tags, rating, date, date and time, time, file upload, colour, country, consent, hidden, heading, paragraph and divider. Every field has a label, key, placeholder, help text, default, required flag, a width on a twelve-column grid, rules picked from a list, a custom error message and any extra Laravel rule you type in. A live preview, twenty templates, duplicate, JSON export and import.
+- **[Conditions and steps](#conditions-and-steps)** — show, hide or require a field or a section when other answers match (eight operators, all or any), applied live in the browser and enforced on the server. Sections group fields into cards or into the steps of a multi-step form with a progress bar and per-step validation.
+- **[Five ways to render](#rendering-a-form)** — a plain Blade component that works on cached and session-less pages, a Livewire component with Filament fields and in-place validation, a JSON API for SPAs and mobile apps, an iframe and a script embed for any other site. All go through the same validation and storage. Prefill from the page URL, custom CSS and JavaScript per form, a brand colour, labels beside the fields.
+- **[Submissions](#submissions)** — numbered, stored with the values, the page they came from and the labels at the time, listed per form with a column per field, filters per field, a details slide-over with file downloads, an edit slide-over, read / unread state, bulk actions, CSV and Excel exports, a retention command. Unread counts on the navigation item.
+- **[Notifications and webhooks](#notifications-and-webhooks)** — an email per submission with from, reply-to, CC, BCC, a subject with merge tags and the uploaded files attached; a confirmation to the visitor with merge tags; Filament panel notifications to chosen users; a signed webhook per form with a delivery log and retries; a `SubmissionReceived` event and a `SubmissionSink` contract.
+- **[Spam protection](#spam-protection)** — a honeypot, a single-use time-trap token, a per-IP rate limit, word, email-domain and IP blocklists, allowed origins, and Turnstile, hCaptcha or reCAPTCHA v3 when you want a captcha. Bots see the success message; nothing is stored.
+- **[Access and limits](#settings)** — a success message or a redirect, published or not, an opening and closing date, private forms opened only by a dated share link, a password, a login requirement, one submission per person, a maximum number of submissions, and a "do not store" mode.
+- **[Extensible](#extending)** — write a field type class with its own settings, rules, views, column and filter; swap the models and table names; scope forms to a tenant; submit from code with `FormBuilder::submit()`; render a form from an array.
 - **[Themeable and translatable](#theming)** — the Blade renderer uses CSS variables with sensible defaults and ships its own small stylesheet; every string lives in a language file.
 
 ## Compatibility
@@ -54,13 +55,26 @@ A **Forms** resource appears in the navigation.
 
 ![The Forms resource: submission and unread counts, active state, an Open page action](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/forms-list.png)
 
-Create a form, give it a name, and add fields from the block picker. Each block carries the settings of its type: choices for a dropdown or a checkbox list, a range for numbers and dates, rows for long text, the level of a heading. Keys are derived from labels and kept unique, so values in submissions and exports keep a stable name.
+Create a form, give it a name, and add fields from the block picker, or start from one of the twenty templates. Each block carries the settings of its type: choices for a dropdown or a checkbox list, a range for numbers and dates, rows for long text, accepted types and a size for uploads, the level of a heading. Keys are derived from labels and kept unique, so values in submissions and exports keep a stable name. **Preview** shows the form from the unsaved state.
 
 ![The Fields tab: one collapsible block per field, the Message block open with its label, key, placeholder, rows, required flag and extra rules](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/builder.png)
 
-![The block picker with the fourteen built-in field types](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/field-picker.png)
+![The block picker with the built-in field types](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/field-picker.png)
 
-The **Settings** tab holds the submit button label, the success message or a redirect URL, notification addresses, whether submissions are stored, an opening and closing date, a login requirement and the spam settings. The **Embed** tab shows the snippets for the form you are editing.
+The **Settings** tab holds the submit button label, the success message or a redirect URL, whether submissions are stored, the availability window, the visibility, password, login and per-person limits and the spam settings. **Notifications** holds the emails, the panel notifications and the webhook; **Design** the display mode, the steps, the hosted page and the styling; **Embed** the snippets for the form you are editing.
+
+### Conditions and steps
+
+Every field and section can be shown or hidden when other answers match, and a required field can be required only in some cases:
+
+> Show **T-shirt size** when **Attendance** is equal to *In person*.
+> Require **Company** only when **Attendance** is equal to *Virtual*.
+
+Eight operators (equal, not equal, containing, not containing, greater, less, empty, not empty), matched all or any. The conditions run live in the browser (both renderers), on the server when the form is submitted (a hidden field is not validated and is stored as null), and are exposed in the JSON definition for headless clients.
+
+A **Section** block groups fields under a title: a card on a single-page form, and with **Display: multi-step** on the Design tab, one step each, with a progress bar, *Next* and *Back* buttons and per-step validation. Without JavaScript the plain renderer shows everything on one page and still works.
+
+Read more: [Logic and steps](https://packstub.dev/docs/filament-form-builder/logic-and-steps).
 
 ![The Settings tab: general, after submit, notifications, availability and spam protection sections](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/settings.png)
 
@@ -80,7 +94,7 @@ A plain HTML form posting to `/forms/contact`. Without JavaScript the browser po
 
 The component works on pages without a session: errors and old input travel in an encrypted query parameter instead of the session. The submit route runs the `web` middleware by default; on a session-less site set `routes.middleware` to `[]` and rely on the honeypot, the time trap and the rate limit.
 
-Options: `:enhance="false"` for a plain POST only, `:styles="false"` when your site ships its own CSS, `action` and `return` to override the endpoint and the page to come back to.
+Options: `:enhance="false"` for a plain POST only, `:styles="false"` when your site ships its own CSS, `:values="[...]"` to prefill, `action` and `return` to override the endpoint and the page to come back to. The page URL's query parameters prefill fields of the same key (`?email=…`).
 
 ![The Contact form rendered by the Blade component on a marketing page, half-width fields side by side](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/site-blade.png)
 
@@ -92,9 +106,9 @@ Options: `:enhance="false"` for a plain POST only, `:styles="false"` when your s
 <livewire:form-builder form="contact" />
 ```
 
-The fields as Filament components, validated in place. Nothing else to add to the page: the component brings Filament's frontend with it, the way Livewire brings its own script. Its stylesheet is a compiled pick of the Filament components the built-in field types use (14 KB gzipped, against 63 KB for the panel theme), published by `php artisan filament:assets` next to the other Filament assets. It carries no reset, so the host page keeps its own styles. A layout that already prints `@filamentStyles` and `@filamentScripts` is left alone.
+The fields as Filament components, validated in place. Nothing else to add to the page: the component brings Filament's frontend with it, the way Livewire brings its own script. Its stylesheet is a compiled pick of the Filament components the built-in field types use (24 KB gzipped, against 63 KB for the panel theme), published by `php artisan filament:assets` next to the other Filament assets. It carries no reset, so the host page keeps its own styles. A layout that already prints `@filamentStyles` and `@filamentScripts` is left alone.
 
-Custom field types that render other Filament components (a toggle, a tags input) need their CSS: point `frontend.livewire_theme` at the panel theme `filament:assets` publishes (`css/filament/filament/app.css`) or at a theme of your own, and every component is covered.
+Custom field types that render other Filament components (a repeater, a slider) need their CSS: point `frontend.livewire_theme` at the panel theme `filament:assets` publishes (`css/filament/filament/app.css`) or at a theme of your own, and every component is covered.
 
 ![A registration form rendered by the Livewire component: headings, radio buttons, a checkbox list, a date picker and a terms checkbox](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/site-livewire.png)
 
@@ -107,17 +121,26 @@ GET  /forms/contact/definition
 POST /forms/contact            Accept: application/json
 ```
 
-The definition lists the fields with their type, rules and choices, plus a fresh protection token and the names of the anti-spam fields to send back. The POST answers `{ "ok": true, "message": "...", "redirect": null, "id": 12 }` or `422` with `errors` keyed by field.
+The definition lists the sections and the fields with their type, choices, conditions and requirement, the display mode, plus a fresh protection token, the captcha and the names of the anti-spam fields to send back. The POST answers `{ "ok": true, "message": "...", "redirect": null, "id": 12 }` or `422` with `errors` keyed by field; `POST /forms/contact/validate` checks one step.
+
+### Iframe and script
+
+For any other site, the Embed tab gives an iframe of the hosted page (`?embed=1`, bare and auto-sized) and a script that renders the form into a `<div data-form-builder="contact">` through the JSON API, with the stylesheet, the in-place submit, the conditions and the steps:
+
+```html
+<div data-form-builder="contact"></div>
+<script src="https://example.com/forms/contact/embed.js" async></script>
+```
 
 ### Hosted page
 
-Every form is also served on its own at `/forms/{slug}` (switch off with `routes.page`, change the layout with `routes.page_layout`).
+Every form is also served on its own at `/forms/{slug}` with its page title, meta description, social image and logo (switch off with `routes.page`, change the layout with `routes.page_layout`). **Share** in the panel gives the link, the availability window and, for a private form, a signed share link valid until a date of your choice.
 
 ![The hosted page of a form: name, description and the form in the package layout](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/hosted-page.png)
 
 ## Submissions
 
-Submissions live under the form as a relation manager: the date, a summary of the first values, the page they came from and the channel (web, json, livewire, code). Opening one shows every value and the details, and marks it read. Bulk actions mark as read, export or delete. The CSV export lists the form's current fields, then any key an older submission still carries.
+Submissions live under the form as a relation manager: the number, the date, a summary, one column per field (searchable, sortable, toggleable), the page they came from and the channel (web, json, livewire, code), with a filter per choice, boolean or date field. Opening one shows every value and the details, with uploaded files as signed download links, and marks it read; **Edit** changes the values. Bulk actions mark as read, export or delete. The CSV and Excel exports list the form's fields, then any key an older submission still carries. `form-builder:prune` applies the retention settings.
 
 ![The Submissions table under a form: unread envelopes, received date, a summary of the values, the page, and the Export CSV action](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/submissions.png)
 
@@ -133,9 +156,9 @@ $submission->formatted(); // ['email' => ['label' => 'Email', 'value' => 'ada@ex
 
 Read more: [Submissions](https://packstub.dev/docs/filament-form-builder/submissions).
 
-## Notifications and sinks
+## Notifications and webhooks
 
-Add addresses to **Notify by email** and each submission is emailed (queued when a queue is configured). For anything else, write a sink:
+Add addresses to **Notify by email** and each submission is emailed (queued when a queue is configured), with a subject like `[{form_name}] #{submission_number} from {name}`, reply-to set to the visitor, CC, BCC and the uploaded files attached when you ask. **Send a confirmation to the visitor** emails the respondent a Markdown message with the same merge tags. **Notify in the panel** sends a Filament database notification to the users you pick. A **Webhook URL** gets every submission as JSON, signed with Standard Webhooks headers, with a delivery log and retries under the form. For anything else, write a sink:
 
 ```php
 use Packstub\FormBuilder\Contracts\SubmissionSink;
@@ -155,23 +178,28 @@ Register it in `config/packstub-form-builder.php` under `sinks`, or at runtime w
 ## Spam protection
 
 - **Honeypot** — a hidden input a person never sees; a filled one drops the submission.
-- **Time trap** — the form carries an encrypted token with the time it was rendered; a submission posted faster than `spam.min_seconds` (default 2) is dropped. Headless clients get the token from the definition endpoint.
+- **Time trap** — the form carries an encrypted, single-use token with the time it was rendered; a submission posted faster than `spam.min_seconds` (default 2), or with a token that already posted, is dropped. Headless clients get the token from the definition endpoint.
 - **Rate limit** — `submissions.throttle` (default `10,1`) per IP on the submit endpoint.
+- **Blocklists and origins** — words, email domains and IPs to drop, and the hosts a form may be posted from.
+- **Captcha** — Cloudflare Turnstile, hCaptcha or Google reCAPTCHA v3, verified on the server, per form, once the keys are in the config.
 
-Both checks can be tuned per form in its Settings tab. Dropped submissions look like a success to the sender and fire `SpamDetected`.
+The honeypot, the time trap and the captcha can be tuned per form in its Settings tab. Dropped submissions look like a success to the sender and fire `SpamDetected`.
 
 ## Settings
 
 | Setting | What it does |
 | --- | --- |
-| Active | Off: the form renders as closed and rejects submissions |
+| Published | Off: the form renders as closed and rejects submissions |
 | Submit button, success message | Shown by every renderer |
 | Redirect after submit | Sends the visitor to a URL instead of showing the message |
-| Notify by email | One email per submission to each address |
-| Store submissions | Off: the submission is only emailed and passed to sinks |
-| Opens at, closes at | An availability window |
-| Require a logged-in user | Rejects anonymous submissions |
-| Honeypot, minimum seconds | Per-form spam settings |
+| Store submissions | Off: the submission is only emailed, posted and passed to sinks |
+| Opens at, closes at, closed message | An availability window |
+| Visibility, password, login | Private forms open only by share link; a password prompt; a login requirement |
+| One per person, maximum submissions | Limits, each with its own message |
+| Prefill from the page URL | `?key=value` fills a field |
+| Keep submissions for | Days before pruning |
+| Honeypot, minimum seconds, captcha | Per-form spam settings |
+| Display, labels, steps, page, styling | The Design tab: single page or multi-step, page meta, brand colour, custom CSS and JavaScript |
 
 ## Extending
 
@@ -182,21 +210,21 @@ use Filament\Forms\Components\TextInput;
 use Packstub\FormBuilder\Fields\Field;
 use Packstub\FormBuilder\Fields\Types\NumberField;
 
-class RatingField extends NumberField
+class ScoreField extends NumberField
 {
     public static function id(): string
     {
-        return 'rating';
+        return 'score';
     }
 
     public function rules(Field $field): array
     {
-        return ['integer', 'between:1,5'];
+        return ['integer', 'between:1,100'];
     }
 }
 ```
 
-Register it in the config under `field_types`, on the plugin with `FormBuilderPlugin::make()->fieldTypes([RatingField::class])`, or with `FormBuilder::registerFieldTypes([...])`. Hide built-ins with `->withoutFieldTypes([...])`. Name the label in your language file under `packstub-form-builder::form-builder.types.rating`.
+Register it in the config under `field_types`, on the plugin with `FormBuilderPlugin::make()->fieldTypes([ScoreField::class])`, or with `FormBuilder::registerFieldTypes([...])`. Hide built-ins with `->withoutFieldTypes([...])`. Name the label in your language file under `packstub-form-builder::form-builder.types.score`. Scope forms to a tenant with `tenancy.enabled`; render a form that lives in code with `Form::fromArray([...])`; offer your own templates with `Templates::add($directory)`.
 
 Submit from code:
 
@@ -237,22 +265,30 @@ php artisan vendor:publish --tag=packstub-form-builder-config
 | --- | --- | --- |
 | `tables.*`, `models.*` | `form_builder_*` | Table names and model classes |
 | `field_types` | the built-ins | Field types offered in the builder |
-| `routes.prefix` | `forms` | URL prefix of the submit, definition and hosted page routes |
-| `routes.middleware` | `['web']` | Middleware of the submit and definition routes |
-| `routes.page`, `page_middleware`, `page_layout` | on, `['web']`, package layout | The hosted page |
+| `routes.prefix` | `forms` | URL prefix of the routes |
+| `routes.middleware` | `['web']` | Middleware of the submit, validate, unlock and definition routes |
+| `routes.page`, `page_middleware`, `page_layout`, `embed` | on, `['web']`, package layout, on | The hosted page and the embed script |
 | `submissions.throttle` | `10,1` | Rate limit per IP; `null` to disable |
 | `submissions.store_ip`, `store_user_agent` | `true` | What the submission row records |
-| `submissions.queue_notifications` | `true` | Queue the notification emails |
-| `spam.honeypot`, `honeypot_field`, `min_seconds`, `token_field` | on, `_fb_website`, `2`, `_fb_token` | Spam defaults (per form in the panel) |
+| `submissions.queue_notifications` | `true` | Queue the emails |
+| `submissions.retention_days`, `anonymize_after_days` | `0` | What `form-builder:prune` deletes and anonymises |
+| `uploads.disk`, `directory`, `max_kb`, `attach_max_kb` | `local`, `form-builder`, `10240`, `10240` | File uploads |
+| `spam.honeypot`, `honeypot_field`, `min_seconds`, `token_field`, `token_ttl` | on, `_fb_website`, `2`, `_fb_token`, `120` | Spam defaults (per form in the panel) |
+| `spam.allowed_origins`, `spam.blocklist.*` | `[]` | Origins and blocklists |
+| `captcha.*` | env | Turnstile, hCaptcha, reCAPTCHA keys and the default provider |
+| `notifications.from_email`, `from_name` | env | Email defaults |
+| `webhooks.*` | queued, 3 attempts, 15 s, 30 days | Webhook delivery |
+| `formats.*` | `Y-m-d`, `Y-m-d H:i`, `H:i` | Display formats |
 | `sinks` | `[]` | `SubmissionSink` classes |
-| `frontend.styles`, `frontend.enhance` | `true` | Inline the stylesheet and the fetch script |
+| `frontend.styles`, `frontend.enhance`, `frontend.prefill` | `true` | Inline the stylesheet and the script; prefill from the URL |
+| `tenancy.*` | off | Scope forms to a tenant |
 | `navigation.*`, `gate` | — | Navigation group, icon, sort, unread badge; an ability to check |
 
 Plugin methods: `fieldTypes()`, `withoutFieldTypes()`, `resource()`, `withoutResource()`, `navigationGroup()`, `navigationIcon()`, `navigationSort()`, `navigationBadge()`, `authorize()`.
 
 ## Documentation
 
-[Installation](https://packstub.dev/docs/filament-form-builder/installation) · [Building forms](https://packstub.dev/docs/filament-form-builder/building-forms) · [Rendering](https://packstub.dev/docs/filament-form-builder/rendering) · [Submissions](https://packstub.dev/docs/filament-form-builder/submissions) · [Spam protection](https://packstub.dev/docs/filament-form-builder/spam-protection) · [Extending](https://packstub.dev/docs/filament-form-builder/extending) · [Configuration](https://packstub.dev/docs/filament-form-builder/configuration)
+[Installation](https://packstub.dev/docs/filament-form-builder/installation) · [Building forms](https://packstub.dev/docs/filament-form-builder/building-forms) · [Logic and steps](https://packstub.dev/docs/filament-form-builder/logic-and-steps) · [Rendering](https://packstub.dev/docs/filament-form-builder/rendering) · [Submissions](https://packstub.dev/docs/filament-form-builder/submissions) · [Notifications and webhooks](https://packstub.dev/docs/filament-form-builder/notifications) · [Sharing and templates](https://packstub.dev/docs/filament-form-builder/sharing-and-templates) · [Spam protection](https://packstub.dev/docs/filament-form-builder/spam-protection) · [Extending](https://packstub.dev/docs/filament-form-builder/extending) · [Configuration](https://packstub.dev/docs/filament-form-builder/configuration)
 
 ## Testing
 

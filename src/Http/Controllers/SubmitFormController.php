@@ -5,11 +5,13 @@ namespace Packstub\FormBuilder\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Packstub\FormBuilder\Exceptions\FormClosedException;
 use Packstub\FormBuilder\FormBuilder;
 use Packstub\FormBuilder\Http\FormState;
 use Packstub\FormBuilder\Models\Form;
+use Packstub\FormBuilder\Submissions\PasswordGate;
 use Packstub\FormBuilder\Submissions\SpamGuard;
 use Packstub\FormBuilder\Submissions\SubmissionContext;
 use Packstub\FormBuilder\Submissions\SubmissionResult;
@@ -17,14 +19,20 @@ use Packstub\FormBuilder\Submissions\Submitter;
 
 class SubmitFormController
 {
-    public function __invoke(Request $request, string $form, Submitter $submitter): JsonResponse|RedirectResponse
+    public function __invoke(Request $request, string $form, Submitter $submitter, PasswordGate $gate): JsonResponse|RedirectResponse
     {
         $form = FormBuilder::formModel()::query()->where('slug', $form)->firstOrFail();
         $wantsJson = $request->expectsJson();
         $context = SubmissionContext::fromRequest($request, $wantsJson ? 'json' : 'web');
+        $input = $request->all();
+
+        // A browser that unlocked the form keeps the key in the session.
+        if ($form->password() !== null && ! isset($input[PasswordGate::FIELD]) && $request->hasSession()) {
+            $input[PasswordGate::FIELD] = $request->session()->get($gate->sessionKey($form));
+        }
 
         try {
-            $result = $submitter->submit($form, $request->all(), $context);
+            $result = $submitter->submit($form, $input, $context);
         } catch (FormClosedException $e) {
             return $this->failure($request, $form, ['form' => [$e->getMessage()]], 403);
         } catch (ValidationException $e) {
@@ -67,7 +75,9 @@ class SubmitFormController
         }
 
         $back = $this->returnUrl($request, $form);
-        $input = $request->except(app(SpamGuard::class)->reservedKeys());
+        $input = collect($request->except(app(SpamGuard::class)->reservedKeys()))
+            ->reject(fn ($value): bool => $value instanceof UploadedFile || (is_array($value) && isset($value[0]) && $value[0] instanceof UploadedFile))
+            ->all();
 
         if ($request->hasSession()) {
             return redirect()->to($this->anchored($back, $form))
@@ -88,7 +98,7 @@ class SubmitFormController
     {
         foreach ([$request->input('_fb_return'), $request->headers->get('referer')] as $candidate) {
             if (is_string($candidate) && $candidate !== '' && $this->sameHost($request, $candidate)) {
-                return $this->withQuery($candidate, ['fb_success' => null, 'fb_state' => null]);
+                return $this->withQuery($candidate, ['fb_success' => null, 'fb_state' => null, 'fb_locked' => null]);
             }
         }
 

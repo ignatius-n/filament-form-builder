@@ -4,6 +4,9 @@ namespace Packstub\FormBuilder\Fields;
 
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
+use Filament\Tables\Columns\Column;
+use Filament\Tables\Filters\BaseFilter;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Str;
 
 /**
@@ -48,11 +51,63 @@ abstract class FieldType
     }
 
     /**
+     * The value => label choices of a field of this type (the ones stored in
+     * the builder by default; a type may compute them).
+     *
+     * @return array<string, string>
+     */
+    public function choices(Field $field): array
+    {
+        return $field->storedChoices();
+    }
+
+    /**
      * Whether the submitted value is a list.
      */
     public function acceptsMultiple(): bool
     {
         return false;
+    }
+
+    /**
+     * The kind of value the field takes, which decides the validation rules
+     * the builder offers (ValidationRules::CATEGORY_*); null for none.
+     */
+    public function ruleCategory(): ?string
+    {
+        if (! $this->isInput()) {
+            return null;
+        }
+
+        if ($this->acceptsMultiple()) {
+            return ValidationRules::CATEGORY_MULTIPLE;
+        }
+
+        return $this->hasChoices() ? ValidationRules::CATEGORY_CHOICE : ValidationRules::CATEGORY_TEXT;
+    }
+
+    /**
+     * Whether the builder offers the placeholder setting.
+     */
+    public function hasPlaceholder(): bool
+    {
+        return $this->hasCommonSettings();
+    }
+
+    /**
+     * Whether the builder offers the default value setting.
+     */
+    public function hasDefault(): bool
+    {
+        return $this->hasCommonSettings();
+    }
+
+    /**
+     * Whether the value can be prefilled from the page URL and compared in conditions.
+     */
+    public function isComparable(): bool
+    {
+        return $this->isInput();
     }
 
     /**
@@ -94,6 +149,15 @@ abstract class FieldType
     }
 
     /**
+     * Shape the raw input before validation (a file type turns base64
+     * payloads into files). Most types leave it alone.
+     */
+    public function prepare(mixed $value, Field $field): mixed
+    {
+        return $value;
+    }
+
+    /**
      * Turn the raw submitted value into what gets stored.
      */
     public function normalize(mixed $value, Field $field): mixed
@@ -102,6 +166,21 @@ abstract class FieldType
             return null;
         }
 
+        if (is_string($value)) {
+            $value = trim($value);
+
+            return $value === '' ? null : $value;
+        }
+
+        return $value;
+    }
+
+    /**
+     * The raw submitted value as the conditions compare it, before
+     * validation: trimmed strings, lists as arrays, booleans as booleans.
+     */
+    public function comparableValue(mixed $value, Field $field): mixed
+    {
         if (is_string($value)) {
             $value = trim($value);
 
@@ -141,6 +220,31 @@ abstract class FieldType
     }
 
     /**
+     * A table column for the submissions table, or null for the default
+     * text column.
+     */
+    public function tableColumn(Field $field): ?Column
+    {
+        return null;
+    }
+
+    /**
+     * A filter for the submissions table, or null for none.
+     */
+    public function tableFilter(Field $field): ?BaseFilter
+    {
+        return null;
+    }
+
+    /**
+     * The submitted value as HTML for the details view (plain text by default).
+     */
+    public function display(mixed $value, Field $field): string|Htmlable
+    {
+        return $this->format($value, $field);
+    }
+
+    /**
      * The Blade view of the plain renderer.
      */
     public function view(): string
@@ -176,11 +280,15 @@ abstract class FieldType
         }
 
         if (method_exists($component, 'columnSpan')) {
-            $component->columnSpan($field->width === 'half' ? 1 : 2);
+            $component->columnSpan($field->columns());
         }
 
         if (method_exists($component, 'rules')) {
             $component->rules($field->rules());
+        }
+
+        if (method_exists($component, 'validationMessages') && $field->message !== null) {
+            $component->validationMessages(array_fill_keys(array_map(fn (string $key): string => substr($key, strlen($field->key) + 1), array_keys($field->messages())), $field->message));
         }
 
         return $component;
