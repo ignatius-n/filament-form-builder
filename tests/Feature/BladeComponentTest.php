@@ -90,7 +90,7 @@ it('inlines the stylesheet and the script once per page', function (): void {
 
     expect(substr_count($html, '<style'))->toBe(1)
         ->and(substr_count($html, 'window.PackstubFormBuilder = '))->toBe(1)
-        ->and(substr_count($html, 'data-fb-logic'))->toBe(2)
+        ->and(substr_count($html, '<script type="application/json" data-fb-logic>'))->toBe(2)
         ->and(substr_count($html, '<form '))->toBe(2);
 });
 
