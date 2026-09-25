@@ -12,6 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Livewire;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Enums\FontFamily;
+use Filament\Support\Enums\IconPosition;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,9 @@ class FormActions
             ->icon('heroicon-o-share')
             ->color('gray')
             ->modalHeading(fn (Form $record): string => __('packstub-form-builder::form-builder.share.heading', ['form' => $record->name]))
-            ->modalSubmitActionLabel(__('packstub-form-builder::form-builder.share.generate'))
+            ->modalSubmitActionLabel(fn (Form $record): string => $record->isPrivate()
+                ? __('packstub-form-builder::form-builder.share.generate')
+                : __('packstub-form-builder::form-builder.share.save'))
             ->modalCancelActionLabel(__('filament::components/modal.actions.close.label'))
             ->modalWidth('2xl')
             ->fillForm(fn (Form $record): array => [
@@ -56,8 +59,14 @@ class FormActions
                     ->helperText($record->isPrivate() ? __('packstub-form-builder::form-builder.share.private_link_hint') : __('packstub-form-builder::form-builder.share.link_hint'))
                     ->state(fn (Get $get): string => static::linkFor($record, $get('expires_at')) ?? '—')
                     ->copyable()
+                    ->copyableState(fn (string $state): string => $state)
                     ->copyMessage(__('packstub-form-builder::form-builder.embed.copied'))
+                    ->icon('heroicon-o-clipboard')
+                    ->iconPosition(IconPosition::After)
+                    ->tooltip(__('packstub-form-builder::form-builder.embed.copy'))
                     ->fontFamily(FontFamily::Mono)
+                    ->formatStateUsing(fn (string $state): string => nl2br(e($state)))
+                    ->html()
                     ->columnSpanFull(),
                 DateTimePicker::make('expires_at')
                     ->label(__('packstub-form-builder::form-builder.share.expires_at'))
@@ -76,8 +85,14 @@ class FormActions
                     ->label(__('packstub-form-builder::form-builder.embed.iframe'))
                     ->state(fn (): string => FormResource::iframeSnippet($record))
                     ->copyable()
+                    ->copyableState(fn (string $state): string => $state)
                     ->copyMessage(__('packstub-form-builder::form-builder.embed.copied'))
+                    ->icon('heroicon-o-clipboard')
+                    ->iconPosition(IconPosition::After)
+                    ->tooltip(__('packstub-form-builder::form-builder.embed.copy'))
                     ->fontFamily(FontFamily::Mono)
+                    ->formatStateUsing(fn (string $state): string => nl2br(e($state)))
+                    ->html()
                     ->columnSpanFull(),
             ])
             ->action(function (Form $record, array $data): void {

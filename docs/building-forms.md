@@ -49,7 +49,7 @@ Keys must be unique within a form; the builder refuses duplicates and the model 
 
 ## Validation
 
-Three layers, all optional:
+Three layers, all optional, in the **Validation** section under the field's settings (collapsed until a rule is set; the header counts the rules):
 
 - **Validation** — rules picked from a list that fits the type: minimum, maximum, between, pattern, letters only, starts with, one of, email, URL, whole number, greater than, after, before, file types, maximum size… Each takes a value where it needs one.
 - **Custom error message** — one message shown instead of the default for every rule of the field.
@@ -63,7 +63,7 @@ A **Section** block groups fields under a title and a description: a card on a s
 
 ## Conditions
 
-Every field and section can be **always visible**, **shown when** or **hidden when** conditions on other fields are met, and a required field can be required **only when** or **except when**. See [Logic and steps](logic-and-steps.md).
+Every field and section can be **always visible**, **shown when** or **hidden when** conditions on other fields are met, and a required field can be required **only when** or **except when**. Both live in the **Conditions** section under the field's settings, collapsed until a condition is set, with a summary in the header. See [Logic and steps](logic-and-steps.md).
 
 ## Settings
 

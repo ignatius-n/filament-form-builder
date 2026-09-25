@@ -37,7 +37,9 @@ Upgrading: run `php artisan vendor:publish --tag=packstub-form-builder-migration
 ### Changed
 
 - **Livewire stylesheet** now covers the toggle, toggle buttons, tags, file upload, colour picker, rich editor, section, wizard and badge components (24 KB gzipped).
-- **Forms table**: "Active" reads "Published".
+- **Forms table**: "Active" reads "Published"; Duplicate, Export JSON and Delete sit in a row menu so the row fits.
+- **Field editor**: blocks open collapsed (the header carries the label, type and hidden state), the conditions and the validation rules of a field live in two compact sections under its settings, collapsed until one is set, with a summary in the header ("Shown when 2 conditions hold", "3 rules · custom message"); the requirement's match and conditions show only for a conditional requirement.
+- **Embed and Share**: every snippet and link carries a clipboard icon and a "Click to copy" tooltip, multi-line snippets keep their line breaks; the Share dialog's button reads "Save" on a public form and "Generate link" on a private one.
 
 ## 1.1.1 — 2026-09-18
 

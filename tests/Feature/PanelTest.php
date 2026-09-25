@@ -299,3 +299,36 @@ it('shows file downloads in the submission details', function (): void {
 
     expect($html)->toContain('<a href="'.url('/forms/files/'.$submission->id.'/doc/0'), 'brief.pdf</a>');
 });
+
+it('summarises conditions and rules in the block sections and hides requirement rules until they apply', function (): void {
+    $plain = contactForm();
+
+    livewire(EditForm::class, ['record' => $plain->getRouteKey()])
+        ->assertSee('Always visible')
+        ->assertSee('No extra rules')
+        ->assertDontSee('All conditions')
+        ->assertDontSee('Add condition');
+
+    $logic = contactForm([
+        'slug' => 'logic',
+        'fields' => [
+            field('select', 'Topic', ['choices' => ['sales' => 'Sales', 'support' => 'Support']]),
+            field('text', 'Company', [
+                'required' => true,
+                'visibility' => 'when',
+                'visibility_rules' => [['field' => 'topic', 'operator' => 'equals', 'value' => 'sales'], ['field' => 'topic', 'operator' => 'is_not_empty']],
+                'requirement' => 'unless',
+                'requirement_rules' => [['field' => 'topic', 'operator' => 'equals', 'value' => 'support']],
+                'validation' => [['rule' => 'min', 'value' => '2']],
+                'message' => 'Tell us the company.',
+                'rules' => ['max:100'],
+            ]),
+        ],
+    ]);
+
+    livewire(EditForm::class, ['record' => $logic->getRouteKey()])
+        ->assertSee('Shown when 2 conditions hold · Not required when 1 condition holds')
+        ->assertSee('2 rules · custom message')
+        ->assertSee('Add condition')
+        ->assertSeeHtml('/forms/logic/definition<br />');
+});

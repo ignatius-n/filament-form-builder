@@ -4,6 +4,7 @@ namespace Packstub\FormBuilder\Filament\Resources;
 
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -25,6 +26,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\FontFamily;
+use Filament\Support\Enums\IconPosition;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
@@ -543,8 +545,14 @@ class FormResource extends Resource
             ->helperText($hint)
             ->state($state)
             ->copyable()
+            ->copyableState(fn (string $state): string => $state)
             ->copyMessage(__('packstub-form-builder::form-builder.embed.copied'))
+            ->icon('heroicon-o-clipboard')
+            ->iconPosition(IconPosition::After)
+            ->tooltip(__('packstub-form-builder::form-builder.embed.copy'))
             ->fontFamily(FontFamily::Mono)
+            ->formatStateUsing(fn (string $state): string => nl2br(e($state)))
+            ->html()
             ->columnSpanFull();
 
         return [
@@ -650,9 +658,11 @@ class FormResource extends Resource
                     ->icon('heroicon-o-arrow-top-right-on-square')
                     ->url(fn (Form $record): ?string => $record->isPrivate() ? $record->shareUrl() : $record->pageUrl(), shouldOpenInNewTab: true)
                     ->visible(fn (Form $record): bool => $record->pageUrl() !== null),
-                FormActions::duplicate(),
-                FormActions::export(),
-                DeleteAction::make(),
+                ActionGroup::make([
+                    FormActions::duplicate(),
+                    FormActions::export(),
+                    DeleteAction::make(),
+                ]),
             ])
             ->toolbarActions([
                 DeleteBulkAction::make(),

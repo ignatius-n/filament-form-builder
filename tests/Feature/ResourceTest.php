@@ -79,8 +79,8 @@ it('edits a form and shows the embed snippets', function (): void {
 
     livewire(EditForm::class, ['record' => $form->getRouteKey()])
         ->assertOk()
-        ->assertSee('<x-form-builder::form form="contact" />')
-        ->assertSee('<livewire:form-builder form="contact" />')
+        ->assertSeeHtml('&lt;x-form-builder::form form&#61;&#34;contact&#34; /&gt;')
+        ->assertSeeHtml('&lt;livewire:form-builder form&#61;&#34;contact&#34; /&gt;')
         ->assertSee(url('/forms/contact/definition'))
         ->fillForm(['submit_label' => 'Go', 'is_active' => false])
         ->call('save')

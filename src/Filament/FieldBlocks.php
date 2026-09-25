@@ -12,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Str;
@@ -46,6 +47,7 @@ class FieldBlocks
             ->blockIcons()
             ->blockPickerColumns(2)
             ->collapsible()
+            ->collapsed()
             ->cloneable()
             ->reorderableWithButtons()
             ->rule(static::uniqueKeysRule())
@@ -79,12 +81,8 @@ class FieldBlocks
                         ->label(__('packstub-form-builder::form-builder.editor.hidden'))
                         ->helperText(__('packstub-form-builder::form-builder.editor.section_hidden_hint'))
                         ->inline(false),
-                    ...static::conditionsSchema('visibility', __('packstub-form-builder::form-builder.editor.visibility'), [
-                        Conditions::MODE_ALWAYS => __('packstub-form-builder::form-builder.editor.visibility_always'),
-                        Conditions::MODE_WHEN => __('packstub-form-builder::form-builder.editor.visibility_when'),
-                        Conditions::MODE_UNLESS => __('packstub-form-builder::form-builder.editor.visibility_unless'),
-                    ]),
                 ]),
+                static::logicSection(static::visibilitySchema(), isInput: false),
                 static::make('fields', withSections: false)
                     ->addActionLabel(__('packstub-form-builder::form-builder.editor.add_field'))
                     ->rule(null),
@@ -102,10 +100,99 @@ class FieldBlocks
                 Grid::make(2)->schema([
                     ...static::commonSchema($type),
                     ...$type->editorSchema(),
-                    ...static::logicSchema($type),
-                    ...static::validationSchema($type),
                 ]),
+                static::logicSection(static::logicSchema($type), $type->isInput()),
+                ...static::validationSection($type),
             ]);
+    }
+
+    /**
+     * The conditions of a field or section in a compact section that opens
+     * when a condition is set, with a summary in its header.
+     *
+     * @param  array<int, Component>  $schema
+     */
+    protected static function logicSection(array $schema, bool $isInput): Section
+    {
+        return Section::make(__('packstub-form-builder::form-builder.editor.logic_section'))
+            ->description(fn (Get $get): string => static::logicSummary($get, $isInput))
+            ->schema([Grid::make(2)->schema($schema)])
+            ->compact()
+            ->collapsible()
+            ->collapsed(fn (Get $get): bool => ! static::hasLogic($get, $isInput));
+    }
+
+    /**
+     * The validation rules of a field in a compact section that opens when
+     * a rule is set, with a summary in its header.
+     *
+     * @return array<int, Component>
+     */
+    protected static function validationSection(FieldType $type): array
+    {
+        $schema = static::validationSchema($type);
+
+        if ($schema === []) {
+            return [];
+        }
+
+        return [
+            Section::make(__('packstub-form-builder::form-builder.editor.validation'))
+                ->description(fn (Get $get): string => static::validationSummary($get))
+                ->schema([Grid::make(2)->schema($schema)])
+                ->compact()
+                ->collapsible()
+                ->collapsed(fn (Get $get): bool => static::countRules($get) === 0 && blank($get('message'))),
+        ];
+    }
+
+    protected static function conditional(mixed $mode): bool
+    {
+        return in_array($mode, [Conditions::MODE_WHEN, Conditions::MODE_UNLESS], true);
+    }
+
+    protected static function hasLogic(Get $get, bool $isInput): bool
+    {
+        return static::conditional($get('visibility'))
+            || ($isInput && (bool) $get('required') && static::conditional($get('requirement')));
+    }
+
+    protected static function logicSummary(Get $get, bool $isInput): string
+    {
+        $parts = [];
+
+        if (static::conditional($get('visibility'))) {
+            $parts[] = trans_choice(
+                'packstub-form-builder::form-builder.editor.'.($get('visibility') === Conditions::MODE_WHEN ? 'logic_shown' : 'logic_hidden'),
+                count((array) $get('visibility_rules')),
+            );
+        }
+
+        if ($isInput && (bool) $get('required') && static::conditional($get('requirement'))) {
+            $parts[] = trans_choice(
+                'packstub-form-builder::form-builder.editor.'.($get('requirement') === Conditions::MODE_WHEN ? 'logic_required' : 'logic_required_unless'),
+                count((array) $get('requirement_rules')),
+            );
+        }
+
+        return $parts === [] ? __('packstub-form-builder::form-builder.editor.logic_none') : implode(' · ', $parts);
+    }
+
+    protected static function countRules(Get $get): int
+    {
+        return count((array) $get('validation')) + count((array) $get('rules'));
+    }
+
+    protected static function validationSummary(Get $get): string
+    {
+        $count = static::countRules($get);
+        $summary = $count === 0
+            ? __('packstub-form-builder::form-builder.editor.validation_none')
+            : trans_choice('packstub-form-builder::form-builder.editor.validation_summary', $count);
+
+        return filled($get('message'))
+            ? $summary.' · '.__('packstub-form-builder::form-builder.editor.validation_message')
+            : $summary;
     }
 
     /**
@@ -198,11 +285,7 @@ class FieldBlocks
      */
     protected static function logicSchema(FieldType $type): array
     {
-        $visibility = static::conditionsSchema('visibility', __('packstub-form-builder::form-builder.editor.visibility'), [
-            Conditions::MODE_ALWAYS => __('packstub-form-builder::form-builder.editor.visibility_always'),
-            Conditions::MODE_WHEN => __('packstub-form-builder::form-builder.editor.visibility_when'),
-            Conditions::MODE_UNLESS => __('packstub-form-builder::form-builder.editor.visibility_unless'),
-        ]);
+        $visibility = static::visibilitySchema();
 
         if (! $type->isInput()) {
             return $visibility;
@@ -214,11 +297,27 @@ class FieldBlocks
             Conditions::MODE_UNLESS => __('packstub-form-builder::form-builder.editor.requirement_unless'),
         ]);
 
-        foreach ($requirement as $component) {
-            $component->visible(fn (Get $get): bool => (bool) $get('required'));
-        }
+        [$mode, $logic, $rules] = $requirement;
+        $required = fn (Get $get): bool => (bool) $get('required');
+        $active = fn (Get $get): bool => (bool) $get('required') && static::conditional($get('requirement'));
 
-        return [...$visibility, ...$requirement];
+        $mode->visible($required);
+        $logic->visible($active);
+        $rules->visible($active);
+
+        return [...$visibility, $mode, $logic, $rules];
+    }
+
+    /**
+     * @return array<int, Component>
+     */
+    protected static function visibilitySchema(): array
+    {
+        return static::conditionsSchema('visibility', __('packstub-form-builder::form-builder.editor.visibility'), [
+            Conditions::MODE_ALWAYS => __('packstub-form-builder::form-builder.editor.visibility_always'),
+            Conditions::MODE_WHEN => __('packstub-form-builder::form-builder.editor.visibility_when'),
+            Conditions::MODE_UNLESS => __('packstub-form-builder::form-builder.editor.visibility_unless'),
+        ]);
     }
 
     /**
