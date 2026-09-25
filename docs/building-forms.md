@@ -1,6 +1,6 @@
 # Building forms
 
-Open **Forms**, create one, and add fields from the block picker on the **Fields** tab. Blocks can be reordered, collapsed, cloned and deleted.
+Open **Forms**, create one, and add fields from the block picker on the **Fields** tab. Blocks can be reordered, collapsed, cloned, hidden and deleted. **Preview** in the header shows the form as the visitor sees it, from the unsaved state, and takes a test submission without storing it. Start from a template with **Use a template** on the list, or bring a JSON export with **Import JSON**.
 
 ![The Forms resource: submission and unread counts, active state, an Open page action](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/forms-list.png)
 
@@ -8,7 +8,7 @@ Open **Forms**, create one, and add fields from the block picker on the **Fields
 
 ## Field types
 
-![The block picker with the fourteen built-in field types](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/field-picker.png)
+![The block picker with the built-in field types](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/field-picker.png)
 
 | Type | Value | Own settings |
 | --- | --- | --- |
@@ -17,39 +17,84 @@ Open **Forms**, create one, and add fields from the block picker on the **Fields
 | Phone | string | — |
 | URL | string | Validated as a URL |
 | Number | int or float | Minimum, maximum, step |
+| Amount | float | Prefix, suffix, decimals, minimum, maximum |
 | Long text | string | Rows, maximum length |
+| Rich text | HTML (safe tags only) | Rows; a rich editor in the Livewire renderer, a text area elsewhere |
 | Dropdown | one choice | Choices (value → label) |
+| Multi-select | list of choices | Choices |
 | Radio buttons | one choice | Choices |
+| Toggle buttons | one choice | Choices, shown as a row of buttons |
 | Checkbox | true / false | Required means it must be ticked |
+| Toggle | true / false | A switch; same value as a checkbox |
 | Checkbox list | list of choices | Choices |
-| Date | `Y-m-d` string | Earliest and latest date |
+| Tags | list of strings | Maximum number; comma-separated in the plain renderer |
+| Rating | 1 to N | The scale (1 to 10) |
+| Date | `Y-m-d` | Earliest and latest date |
+| Date and time | `Y-m-d H:i:s` | Earliest and latest date |
+| Time | `H:i` | — |
+| File upload | list of stored paths | Several files, maximum count, accepted types, maximum size |
+| Colour | `#rrggbb` | — |
+| Country | ISO 3166-1 alpha-2 code | A list of codes to offer (empty: every country) |
+| Consent | true / false | Link text and URL shown after the label |
 | Hidden | string | Value |
 | Heading | — | Level (H2–H4) |
 | Paragraph | — | Text |
+| Divider | — | An optional text on the rule |
 
-Every input field also has a label, a **key** (derived from the label; the name of the value in submissions, exports and the JSON API), a placeholder, help text, a default value, a required flag, a width (full or half of the row) and **extra validation rules**: any Laravel rule, one per tag, such as `max:100`, `starts_with:+`, `regex:/^[A-Z]/`.
+Every input field also has a label, a **key** (derived from the label; the name of the value in submissions, exports and the JSON API), a placeholder, help text, a default value, a required flag and a width: full, three quarters, two thirds, half, one third or one quarter of the row (a twelve-column grid that collapses on small screens).
+
+**Hidden** keeps a field in the design without showing or validating it; old values still appear in exports and columns.
 
 Keys must be unique within a form; the builder refuses duplicates and the model suffixes a missing one.
 
+## Validation
+
+Three layers, all optional:
+
+- **Validation** — rules picked from a list that fits the type: minimum, maximum, between, pattern, letters only, starts with, one of, email, URL, whole number, greater than, after, before, file types, maximum size… Each takes a value where it needs one.
+- **Custom error message** — one message shown instead of the default for every rule of the field.
+- **Extra validation rules** — any Laravel rule, one per tag, such as `max:100`, `starts_with:+`, `regex:/^[A-Z]/`.
+
+Required and the rules run on the server in every renderer; the Livewire renderer also validates in place.
+
+## Sections
+
+A **Section** block groups fields under a title and a description: a card on a single-page form, a step of a [multi-step form](logic-and-steps.md). Fields outside any section form an unnamed group. A section can be hidden, and shown or hidden by [conditions](logic-and-steps.md) like a field.
+
+## Conditions
+
+Every field and section can be **always visible**, **shown when** or **hidden when** conditions on other fields are met, and a required field can be required **only when** or **except when**. See [Logic and steps](logic-and-steps.md).
+
 ## Settings
 
-![The Settings tab: general, after submit, notifications, availability and spam protection sections](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/settings.png)
+![The Settings tab: general, after submit, availability and spam protection sections](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/settings.png)
 
 | Setting | What it does |
 | --- | --- |
 | Name, slug | The slug is the form's URL and embed name |
-| Active | Off: the form renders as closed and rejects submissions |
+| Published | Off: the form renders as closed and rejects submissions |
+| Store submissions | Off: submissions are only emailed, posted to the webhook and passed to sinks |
 | Submit button | Label of the button |
 | Success message | Shown after a submission, unless a redirect is set |
 | Redirect after submit | A URL to send the visitor to |
-| Notify by email | One email per submission to each address |
-| Store submissions | Off: submissions are only emailed and passed to sinks |
-| Opens at, closes at | Outside the window the form is closed |
+| Opens at, closes at, closed message | Outside the window the form is closed, with that message |
+| Visibility | Public, or private: reachable only through a [share link](sharing-and-templates.md) |
+| Password | Visitors type it before the form shows |
 | Require a logged-in user | Rejects anonymous submissions |
-| Honeypot, minimum seconds | Per-form [spam settings](spam-protection.md) |
+| Prefill from the page URL | `?email=…` fills the field with that key |
+| One submission per person | By user when signed in, else by browser and IP address |
+| Maximum submissions | The form closes when reached, with its own message |
+| Keep submissions for | Days before `form-builder:prune` deletes them |
+| Honeypot, minimum seconds, captcha | Per-form [spam settings](spam-protection.md) |
+
+The **Notifications** tab holds the [emails, panel notifications and webhook](notifications.md); the **Design** tab the [display mode, steps, hosted page and styling](logic-and-steps.md#design).
 
 ## Embed
 
-The **Embed** tab shows, for the form being edited, the Blade tag, the Livewire tag, the hosted page URL and the JSON endpoints, each copyable.
+The **Embed** tab shows, for the form being edited, the Blade tag, the Livewire tag, the hosted page URL, an iframe snippet, a script snippet and the JSON endpoints, each copyable. See [Rendering](rendering.md).
 
-![The Embed tab with the four copyable snippets](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/embed.png)
+![The Embed tab with the copyable snippets](https://raw.githubusercontent.com/packstub/art/main/filament-form-builder/docs/embed.png)
+
+## Duplicate, export, import
+
+**Duplicate** copies a form (unpublished, with a free slug). **Export JSON** downloads the definition; **Import JSON** on the list creates a form from it, on another environment or another app. The same array renders straight from code: `Form::fromArray([...])` gives an unsaved model both renderers accept, so a form can live in a config file or a package.

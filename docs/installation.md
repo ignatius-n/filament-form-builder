@@ -5,7 +5,7 @@ composer require packstub/filament-form-builder
 php artisan packstub-form-builder:install
 ```
 
-The install command publishes the config file and the migration and offers to run it. Two tables are created: `form_builder_forms` and `form_builder_submissions` (rename them in `tables` before migrating).
+The install command publishes the config file and the migrations and offers to run them. Three tables are created: `form_builder_forms`, `form_builder_submissions` and `form_builder_webhook_deliveries` (rename them in `tables` before migrating).
 
 Register the plugin on every panel that should manage forms:
 
@@ -28,7 +28,7 @@ public function panel(Panel $panel): Panel
 | --- | --- | --- | --- |
 | 1.x | 4.x, 5.x | 12.x, 13.x | 8.3+ |
 
-No other package is required. The CSV export, the email notification and the spam protection are built in.
+No other package is required. The CSV export, the emails, the webhooks and the spam protection are built in; the Excel export appears when OpenSpout is installed, the captcha when a provider's keys are set, the panel notifications when Filament's database notifications are set up.
 
 The Livewire renderer's stylesheet is a Filament asset: `php artisan filament:assets` publishes it (the `filament:upgrade` script Filament adds to `composer.json` runs that on every update).
 
@@ -39,7 +39,15 @@ The package registers, under `routes.prefix` (`forms`):
 | Route | Name | Purpose |
 | --- | --- | --- |
 | `POST /forms/{slug}` | `packstub-form-builder.submit` | Submit (HTML redirect back, or JSON with `Accept: application/json`) |
+| `POST /forms/{slug}/validate` | `packstub-form-builder.validate` | Validate one step of a multi-step form |
+| `POST /forms/{slug}/unlock` | `packstub-form-builder.unlock` | Take the password of a protected form |
 | `GET /forms/{slug}/definition` | `packstub-form-builder.definition` | The form definition for headless clients |
-| `GET /forms/{slug}` | `packstub-form-builder.show` | The hosted page (off with `routes.page`) |
+| `GET /forms/{slug}/embed.js` | `packstub-form-builder.embed` | The script embed (off with `routes.embed`) |
+| `GET /forms/{slug}` | `packstub-form-builder.show` | The hosted page (off with `routes.page`); `?embed=1` for an iframe |
+| `GET /forms/files/{submission}/{field}/{index}` | `packstub-form-builder.file` | A signed download of an uploaded file |
 
 If your site has a catch-all route (a CMS), make sure `forms` is excluded from it, or change the prefix.
+
+## Scheduling
+
+Add `form-builder:prune` to the scheduler when a form keeps submissions for a limited time or old ones should lose their IP address (see [Submissions](submissions.md#retention)).

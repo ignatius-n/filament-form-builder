@@ -2,6 +2,43 @@
 
 All notable changes to `packstub/filament-form-builder` are documented here.
 
+## 1.2.0 — 2026-09-25
+
+Upgrading: run `php artisan vendor:publish --tag=packstub-form-builder-migrations` and `php artisan migrate` (a guarded migration adds the submission number and fingerprint, the tenant column and the webhook deliveries table), then `php artisan filament:assets` (the Livewire stylesheet grew from 14 to 24 KB gzipped to cover the new components). `SubmissionsCsv` is now `SubmissionsExport` (same `download()` / `write()` signature). Nothing else changes for existing forms.
+
+### Added
+
+- **Conditions**: every field and section can be always visible, shown when or hidden when conditions on other fields hold (equal, not equal, containing, not containing, greater, less, empty, not empty; all or any), and a required field can be required only when or except when. Applied live by the Blade renderer's script and by the Livewire renderer, enforced on the server (a hidden field is not validated and is stored as `null`), exposed in the JSON definition. Conditions can reference fields added in the same editing session.
+- **Sections and multi-step forms**: a Section block groups fields (title, description, own conditions, hidden toggle); with Display set to multi-step on the new Design tab every section is a step with a progress bar, step numbers, Next / Back buttons of your own and per-step validation (`POST /forms/{slug}/validate`, or Filament's wizard in Livewire). Without JavaScript everything shows on one page.
+- **14 field types**: amount (prefix, suffix, decimals), rich text, multi-select, toggle buttons, toggle, tags, rating, date and time, time, file upload (private disk, several files, accepted types, size, signed downloads, base64 over the JSON API, deleted with the submission), colour, country (ISO codes), consent (checkbox with a link) and divider. Widths: quarter, third, half, two thirds, three quarters, full on a twelve-column grid.
+- **Validation picker**: rules chosen from a list that fits the type (about 40), a custom error message per field, the free-text rules kept.
+- **Hidden fields**: keep a field in the design without showing it; old values stay in exports and columns.
+- **Live preview**: a Preview action on the create and edit pages renders the form from the unsaved state in a slide-over and takes a test submission without storing it.
+- **Templates**: twenty built-in templates under "Use a template" (contact, lead generation, feedback and surveys, HR, support, agency, healthcare, orders), `Templates::add()` for your own.
+- **Duplicate, export and import**: a copy with a free slug, a JSON export, an import on the list; `Form::fromArray()` renders a portable array with either component, `$form->toPortable()` produces one.
+- **Share**: a Share action with the public link, the availability window and the iframe snippet; a private visibility whose form opens only through a signed share link, with an optional expiry (`$form->shareUrl($until)`).
+- **Password**: a per-form password with a prompt in every renderer, an encrypted key in the session or the query string, `POST /forms/{slug}/unlock` for JSON clients.
+- **Limits**: one submission per person (user id, else a hash of IP and user agent), a maximum number of submissions, a closed message, a full message and an already-submitted message of your own; the JSON definition and the page tell.
+- **Single-use tokens**: the time-trap token now carries a nonce and cannot post twice (`spam.token_ttl`).
+- **Captcha**: Cloudflare Turnstile, hCaptcha and Google reCAPTCHA v3, verified on the server, chosen per form once the keys are in `captcha`; widgets in the Blade and Livewire renderers, `protection.captcha` in the definition.
+- **Blocklists and origins**: `spam.blocklist` (words, email domains, IPs) and `spam.allowed_origins`; new `SpamDetected` reasons.
+- **Sequential numbers**: submissions get a number per form (`#42`), shown in the table, the details, the emails and the exports.
+- **Submissions table**: one column per field (searchable, sortable, toggleable), a filter per choice, boolean or date field, an Edit slide-over with the Filament components, file downloads in the details, rich text rendered, an Excel export when OpenSpout is installed.
+- **Retention**: `form-builder:prune` deletes submissions older than the form's or the config's retention, anonymises older ones and drops old webhook deliveries; `--dry-run`.
+- **Notifications tab**: subject with merge tags (`{form_name}`, `{submission_number}`, `{field_key}`…), from, reply-to (an address or the respondent), CC, BCC, uploaded files attached; a confirmation email to the visitor with a Markdown body and merge tags; Filament database notifications to chosen users.
+- **Webhooks**: a URL per form, POST / PUT / PATCH, Standard Webhooks signing with a generated secret, field selection, metadata toggle, extra headers, queued deliveries with retries, a Webhook deliveries relation manager with a retry action, `WebhookDelivery` model.
+- **Embeds**: `?embed=1` renders the hosted page bare and posts its height for an iframe (snippet on the Embed tab); `GET /forms/{slug}/embed.js` renders the form into any page through the JSON API with the stylesheet, the in-place submit, the conditions and the steps.
+- **Prefill**: `:values` on both components and the page URL's query parameters (`frontend.prefill`, per form).
+- **Design tab**: labels beside the fields, page title, meta description, social image and logo on the hosted page, a brand colour, custom CSS and JavaScript scoped to the form.
+- **Tenancy**: `tenancy.enabled` scopes forms to Filament's current tenant (or a resolver of your own) through a global scope and a tenant column.
+- **Formats**: `formats.date`, `datetime`, `time` for the panel, emails and exports.
+- **Field type hooks**: `ruleCategory()`, `hasPlaceholder()`, `hasDefault()`, `choices()`, `prepare()`, `comparableValue()`, `display()`, `tableColumn()`, `tableFilter()`.
+
+### Changed
+
+- **Livewire stylesheet** now covers the toggle, toggle buttons, tags, file upload, colour picker, rich editor, section, wizard and badge components (24 KB gzipped).
+- **Forms table**: "Active" reads "Published".
+
 ## 1.1.1 — 2026-09-18
 
 Upgrading: nothing to do — no code, migration or config changed.
