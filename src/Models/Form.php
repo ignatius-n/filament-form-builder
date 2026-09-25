@@ -103,6 +103,11 @@ class Form extends Model
         return $this->hasMany(FormBuilder::submissionModel(), 'form_id');
     }
 
+    public function webhookDeliveries(): HasMany
+    {
+        return $this->hasMany(FormBuilder::webhookDeliveryModel(), 'form_id');
+    }
+
     /**
      * The tenant the form belongs to, when the plugin runs in a tenant-aware
      * panel (config "tenancy").

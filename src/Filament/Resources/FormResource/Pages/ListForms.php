@@ -4,6 +4,7 @@ namespace Packstub\FormBuilder\Filament\Resources\FormResource\Pages;
 
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
+use Packstub\FormBuilder\Filament\FormActions;
 use Packstub\FormBuilder\FormBuilderPlugin;
 
 class ListForms extends ListRecords
@@ -16,6 +17,8 @@ class ListForms extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            FormActions::import(),
+            FormActions::useTemplate(),
             CreateAction::make(),
         ];
     }
