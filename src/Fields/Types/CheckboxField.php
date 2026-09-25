@@ -22,9 +22,29 @@ class CheckboxField extends FieldType
         return 'heroicon-o-check';
     }
 
+    public function ruleCategory(): ?string
+    {
+        return null;
+    }
+
+    public function hasPlaceholder(): bool
+    {
+        return false;
+    }
+
+    public function hasDefault(): bool
+    {
+        return false;
+    }
+
     public function rules(Field $field): array
     {
         return $field->required ? ['accepted'] : [];
+    }
+
+    public function comparableValue(mixed $value, Field $field): mixed
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     public function normalize(mixed $value, Field $field): mixed

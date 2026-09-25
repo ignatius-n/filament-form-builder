@@ -3,13 +3,16 @@
 namespace Packstub\FormBuilder\Submissions;
 
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 use Packstub\FormBuilder\Models\Form;
 
 /**
- * The time-trap token: an encrypted "form id + rendered at" pair that the
- * form carries in a hidden input, so a submission posted too quickly after
- * the render (a bot) can be told apart.
+ * The time-trap token: an encrypted "form id + rendered at + nonce" triple
+ * that the form carries in a hidden input, so a submission posted too
+ * quickly after the render (a bot) can be told apart, and a token cannot
+ * be replayed for a second submission.
  */
 class ProtectionToken
 {
@@ -18,6 +21,7 @@ class ProtectionToken
         return Crypt::encryptString(json_encode([
             'f' => $form->getKey(),
             't' => $renderedAt ?? time(),
+            'n' => Str::random(12),
         ], JSON_THROW_ON_ERROR));
     }
 
@@ -26,6 +30,46 @@ class ProtectionToken
      * the token is missing, tampered with or belongs to another form.
      */
     public function age(Form $form, mixed $token): ?int
+    {
+        $payload = $this->payload($form, $token);
+
+        return $payload === null ? null : max(0, time() - (int) ($payload['t'] ?? 0));
+    }
+
+    /**
+     * Whether the token was already used for an accepted submission.
+     */
+    public function isUsed(Form $form, mixed $token): bool
+    {
+        $payload = $this->payload($form, $token);
+
+        return $payload !== null && isset($payload['n']) && Cache::has($this->usedKey($payload['n']));
+    }
+
+    /**
+     * Remember that the token was used, for as long as it could still pass
+     * the time trap (config "spam.token_ttl" minutes).
+     */
+    public function markUsed(Form $form, mixed $token): void
+    {
+        $payload = $this->payload($form, $token);
+
+        if ($payload === null || ! isset($payload['n'])) {
+            return;
+        }
+
+        Cache::put($this->usedKey($payload['n']), true, now()->addMinutes((int) config('packstub-form-builder.spam.token_ttl', 120)));
+    }
+
+    public function field(): string
+    {
+        return (string) config('packstub-form-builder.spam.token_field', '_fb_token');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function payload(Form $form, mixed $token): ?array
     {
         if (! is_string($token) || $token === '') {
             return null;
@@ -41,11 +85,11 @@ class ProtectionToken
             return null;
         }
 
-        return max(0, time() - (int) ($payload['t'] ?? 0));
+        return $payload;
     }
 
-    public function field(): string
+    protected function usedKey(string $nonce): string
     {
-        return (string) config('packstub-form-builder.spam.token_field', '_fb_token');
+        return 'packstub-form-builder:token:'.$nonce;
     }
 }

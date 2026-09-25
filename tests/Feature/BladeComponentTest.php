@@ -89,7 +89,8 @@ it('inlines the stylesheet and the script once per page', function (): void {
     $html = Blade::render('<x-form-builder::form form="contact" /><x-form-builder::form form="other" />');
 
     expect(substr_count($html, '<style'))->toBe(1)
-        ->and(substr_count($html, '<script'))->toBe(1)
+        ->and(substr_count($html, 'window.PackstubFormBuilder = '))->toBe(1)
+        ->and(substr_count($html, 'data-fb-logic'))->toBe(2)
         ->and(substr_count($html, '<form '))->toBe(2);
 });
 

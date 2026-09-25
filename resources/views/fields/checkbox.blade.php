@@ -1,5 +1,5 @@
 <label class="fb-choice fb-choice--single" for="{{ $inputId }}">
-    <input type="checkbox" id="{{ $inputId }}" name="{{ $field->key }}" value="1" @checked(filter_var($value, FILTER_VALIDATE_BOOLEAN)) @if ($field->required) required aria-required="true" @endif aria-describedby="{{ $field->hint ? $inputId.'-hint ' : '' }}{{ $inputId }}-error" @if ($error) aria-invalid="true" @endif>
+    <input type="checkbox" id="{{ $inputId }}" name="{{ $field->key }}" value="1" @checked(filter_var($value, FILTER_VALIDATE_BOOLEAN)) @if ($field->required && ! $field->isConditional()) required aria-required="true" @endif aria-describedby="{{ $field->hint ? $inputId.'-hint ' : '' }}{{ $inputId }}-error" @if ($error) aria-invalid="true" @endif>
     <span>
         {{ $field->label }}
         @if ($field->required)

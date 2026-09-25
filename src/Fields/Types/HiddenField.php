@@ -23,6 +23,11 @@ class HiddenField extends FieldType
         return 'heroicon-o-eye-slash';
     }
 
+    public function ruleCategory(): ?string
+    {
+        return null;
+    }
+
     public function hasCommonSettings(): bool
     {
         return false;

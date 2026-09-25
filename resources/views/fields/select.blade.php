@@ -3,7 +3,7 @@
     class="fb-input fb-select"
     id="{{ $inputId }}"
     name="{{ $field->key }}"
-    @if ($field->required) required aria-required="true" @endif
+    @if ($field->required && ! $field->isConditional()) required aria-required="true" @endif
     aria-describedby="{{ $field->hint ? $inputId.'-hint ' : '' }}{{ $inputId }}-error"
     @if ($error) aria-invalid="true" @endif
 >

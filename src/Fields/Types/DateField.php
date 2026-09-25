@@ -5,6 +5,7 @@ namespace Packstub\FormBuilder\Fields\Types;
 use Filament\Forms\Components\DatePicker;
 use Filament\Schemas\Components\Component;
 use Packstub\FormBuilder\Fields\Field;
+use Packstub\FormBuilder\Fields\ValidationRules;
 
 class DateField extends InputField
 {
@@ -16,6 +17,16 @@ class DateField extends InputField
     public function icon(): string
     {
         return 'heroicon-o-calendar';
+    }
+
+    public function ruleCategory(): ?string
+    {
+        return ValidationRules::CATEGORY_DATE;
+    }
+
+    public function hasPlaceholder(): bool
+    {
+        return false;
     }
 
     public function inputType(): string
@@ -33,6 +44,14 @@ class DateField extends InputField
                 ->label(__('packstub-form-builder::form-builder.editor.max_date'))
                 ->native(),
         ];
+    }
+
+    public function inputAttributes(Field $field): array
+    {
+        return array_filter([
+            'min' => $field->option('min'),
+            'max' => $field->option('max'),
+        ], fn ($value): bool => $value !== null && $value !== '');
     }
 
     public function rules(Field $field): array

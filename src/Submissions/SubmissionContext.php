@@ -20,6 +20,7 @@ final class SubmissionContext
         public readonly string $channel = 'web',
         public readonly array $meta = [],
         public readonly bool $trusted = false,
+        public readonly ?string $origin = null,
     ) {}
 
     public static function fromRequest(Request $request, string $channel = 'web'): self
@@ -30,6 +31,7 @@ final class SubmissionContext
             sourceUrl: self::sourceUrl($request),
             userId: $request->user()?->getAuthIdentifier(),
             channel: $channel,
+            origin: $request->headers->get('origin') ?: $request->headers->get('referer'),
         );
     }
 
@@ -38,12 +40,12 @@ final class SubmissionContext
      */
     public function withMeta(array $meta): self
     {
-        return new self($this->ip, $this->userAgent, $this->sourceUrl, $this->userId, $this->channel, [...$this->meta, ...$meta], $this->trusted);
+        return new self($this->ip, $this->userAgent, $this->sourceUrl, $this->userId, $this->channel, [...$this->meta, ...$meta], $this->trusted, $this->origin);
     }
 
     public function withChannel(string $channel): self
     {
-        return new self($this->ip, $this->userAgent, $this->sourceUrl, $this->userId, $channel, $this->meta, $this->trusted);
+        return new self($this->ip, $this->userAgent, $this->sourceUrl, $this->userId, $channel, $this->meta, $this->trusted, $this->origin);
     }
 
     /**
@@ -51,7 +53,25 @@ final class SubmissionContext
      */
     public function trusted(bool $trusted = true): self
     {
-        return new self($this->ip, $this->userAgent, $this->sourceUrl, $this->userId, $this->channel, $this->meta, $trusted);
+        return new self($this->ip, $this->userAgent, $this->sourceUrl, $this->userId, $this->channel, $this->meta, $trusted, $this->origin);
+    }
+
+    /**
+     * A stable, anonymous id of the visitor: the user id when signed in,
+     * else a hash of the IP address and the user agent. Used for the
+     * "one submission per person" limit.
+     */
+    public function fingerprint(): ?string
+    {
+        if ($this->userId !== null) {
+            return 'user:'.$this->userId;
+        }
+
+        if ($this->ip === null && $this->userAgent === null) {
+            return null;
+        }
+
+        return hash('xxh128', ($this->ip ?? '').'|'.($this->userAgent ?? ''));
     }
 
     /**

@@ -11,8 +11,19 @@ use Illuminate\Support\Str;
 final class Field
 {
     /**
+     * The builder keys with a meaning of their own; everything else in the
+     * data is a type-specific option.
+     */
+    public const RESERVED = [
+        'key', 'label', 'placeholder', 'hint', 'required', 'default', 'rules', 'width', 'hidden', 'message', 'validation',
+        'visibility', 'visibility_logic', 'visibility_rules',
+        'requirement', 'requirement_logic', 'requirement_rules',
+    ];
+
+    /**
      * @param  array<string, mixed>  $options  Type-specific settings (choices, min, max, rows...).
-     * @param  array<int, string>  $rules  Extra Laravel validation rules entered in the builder.
+     * @param  array<int, string>  $rules  Extra Laravel validation rules typed in the builder.
+     * @param  array<int, array{rule: string, value: mixed}>  $validation  Rules picked from the list.
      * @param  array<string, mixed>  $data  The raw builder data, for anything a custom type stores.
      */
     public function __construct(
@@ -27,6 +38,12 @@ final class Field
         public readonly array $rules = [],
         public readonly string $width = 'full',
         public readonly array $data = [],
+        public readonly bool $hidden = false,
+        public readonly ?Conditions $visibility = null,
+        public readonly ?Conditions $requirement = null,
+        public readonly array $validation = [],
+        public readonly ?string $message = null,
+        public readonly ?string $section = null,
     ) {}
 
     /**
@@ -34,7 +51,7 @@ final class Field
      *
      * @param  array<string, mixed>  $item
      */
-    public static function fromArray(array $item, FieldTypeRegistry $registry): ?self
+    public static function fromArray(array $item, FieldTypeRegistry $registry, ?string $section = null): ?self
     {
         $type = $registry->find((string) ($item['type'] ?? ''));
 
@@ -50,8 +67,6 @@ final class Field
             return null;
         }
 
-        $reserved = ['key', 'label', 'placeholder', 'hint', 'required', 'default', 'rules', 'width'];
-
         return new self(
             key: $key,
             type: $type,
@@ -60,10 +75,16 @@ final class Field
             hint: self::nullableString($data['hint'] ?? null),
             required: $type->isInput() && (bool) ($data['required'] ?? false),
             default: $data['default'] ?? null,
-            options: array_diff_key($data, array_flip($reserved)),
+            options: array_diff_key($data, array_flip(self::RESERVED)),
             rules: self::normalizeRules($data['rules'] ?? []),
-            width: in_array($data['width'] ?? null, ['full', 'half'], true) ? $data['width'] : 'full',
+            width: self::normalizeWidth($data['width'] ?? null),
             data: $data,
+            hidden: (bool) ($data['hidden'] ?? false),
+            visibility: Conditions::fromData($data, 'visibility'),
+            requirement: Conditions::fromData($data, 'requirement'),
+            validation: self::normalizeValidation($data['validation'] ?? []),
+            message: self::nullableString($data['message'] ?? null),
+            section: $section,
         );
     }
 
@@ -78,9 +99,68 @@ final class Field
         return $key;
     }
 
+    public static function normalizeWidth(mixed $width): string
+    {
+        return in_array($width, ['full', 'half', 'third', 'two-thirds', 'quarter', 'three-quarters'], true) ? $width : 'full';
+    }
+
+    /**
+     * The width as a number of columns out of twelve.
+     */
+    public function columns(): int
+    {
+        return match ($this->width) {
+            'quarter' => 3,
+            'third' => 4,
+            'half' => 6,
+            'two-thirds' => 8,
+            'three-quarters' => 9,
+            default => 12,
+        };
+    }
+
     public function isInput(): bool
     {
         return $this->type->isInput();
+    }
+
+    /**
+     * Whether the field shows and validates for the given values (its own
+     * conditions only; Form::visibleKeys() adds the cascade).
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public function isVisibleFor(array $values): bool
+    {
+        return $this->visibility()->passes($values);
+    }
+
+    /**
+     * Whether a value is required for the given values.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    public function isRequiredFor(array $values): bool
+    {
+        return $this->required && $this->requirement()->passes($values);
+    }
+
+    public function visibility(): Conditions
+    {
+        return $this->visibility ?? Conditions::always();
+    }
+
+    public function requirement(): Conditions
+    {
+        return $this->requirement ?? Conditions::always();
+    }
+
+    /**
+     * Whether the required state or visibility depends on other fields.
+     */
+    public function isConditional(): bool
+    {
+        return ! $this->visibility()->isAlways() || ($this->required && ! $this->requirement()->isAlways());
     }
 
     /**
@@ -89,6 +169,16 @@ final class Field
      * @return array<string, string>
      */
     public function choices(): array
+    {
+        return $this->type->choices($this);
+    }
+
+    /**
+     * The choices as stored in the builder data, normalised to value => label.
+     *
+     * @return array<string, string>
+     */
+    public function storedChoices(): array
     {
         $choices = $this->options['choices'] ?? [];
 
@@ -117,21 +207,78 @@ final class Field
 
     /**
      * The complete validation rules for the field: required/nullable, the
-     * type's own rules and the custom ones from the builder.
+     * type's own rules, the ones picked from the list and the custom ones
+     * typed in the builder.
      *
+     * @param  array<string, mixed>|null  $values  The submitted values, for conditional requirement (null = as configured).
      * @return array<int, mixed>
      */
-    public function rules(): array
+    public function rules(?array $values = null): array
     {
-        $rules = [$this->required ? 'required' : 'nullable'];
+        $required = $values === null ? $this->required : $this->isRequiredFor($values);
+        $rules = [$required ? 'required' : 'nullable'];
 
-        foreach ([...$this->type->rules($this), ...$this->rules] as $rule) {
+        foreach ([...$this->type->rules($this), ...$this->pickedRules(), ...$this->rules] as $rule) {
             if ($rule !== null && $rule !== '' && ! in_array($rule, $rules, true)) {
                 $rules[] = $rule;
             }
         }
 
         return $rules;
+    }
+
+    /**
+     * The rules picked from the list, as Laravel rules.
+     *
+     * @return array<int, mixed>
+     */
+    public function pickedRules(): array
+    {
+        $rules = [];
+
+        foreach ($this->validation as $entry) {
+            $rule = ValidationRules::toLaravel($entry['rule'], $entry['value']);
+
+            if ($rule !== null) {
+                $rules[] = $rule;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Custom validation messages, keyed "key.rule", when the field has one.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        if ($this->message === null) {
+            return [];
+        }
+
+        $names = ['required'];
+
+        foreach ($this->rules(null) as $rule) {
+            $name = is_string($rule) ? explode(':', $rule, 2)[0] : (is_object($rule) ? Str::snake(class_basename($rule)) : null);
+
+            if ($name !== null && $name !== 'nullable') {
+                $names[] = $name;
+            }
+        }
+
+        foreach ($this->validation as $entry) {
+            $names[] = ValidationRules::laravelName($entry['rule']);
+        }
+
+        $messages = [];
+
+        foreach (array_unique($names) as $name) {
+            $messages[$this->key.'.'.$name] = $this->message;
+        }
+
+        return $messages;
     }
 
     public function option(string $key, mixed $default = null): mixed
@@ -164,6 +311,9 @@ final class Field
             'multiple' => $this->type->acceptsMultiple(),
             'choices' => $this->type->hasChoices() ? $this->choices() : null,
             'options' => $this->options,
+            'section' => $this->section,
+            'visibility' => $this->visibility()->isAlways() ? null : $this->visibility()->toArray(),
+            'requirement' => $this->required && ! $this->requirement()->isAlways() ? $this->requirement()->toArray() : null,
         ];
     }
 
@@ -191,5 +341,27 @@ final class Field
             fn ($rule): string => is_string($rule) ? trim($rule) : '',
             $rules,
         )));
+    }
+
+    /**
+     * @return array<int, array{rule: string, value: mixed}>
+     */
+    private static function normalizeValidation(mixed $validation): array
+    {
+        if (! is_array($validation)) {
+            return [];
+        }
+
+        $entries = [];
+
+        foreach ($validation as $entry) {
+            if (! is_array($entry) || ! is_string($entry['rule'] ?? null) || $entry['rule'] === '') {
+                continue;
+            }
+
+            $entries[] = ['rule' => $entry['rule'], 'value' => $entry['value'] ?? null];
+        }
+
+        return $entries;
     }
 }

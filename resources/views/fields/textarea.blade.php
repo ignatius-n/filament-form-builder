@@ -5,7 +5,7 @@
     name="{{ $field->key }}"
     rows="{{ (int) ($field->option('rows') ?: 4) }}"
     @if ($field->placeholder) placeholder="{{ $field->placeholder }}" @endif
-    @if ($field->required) required aria-required="true" @endif
+    @if ($field->required && ! $field->isConditional()) required aria-required="true" @endif
     @if (filled($field->option('max_length'))) maxlength="{{ $field->option('max_length') }}" @endif
     aria-describedby="{{ $field->hint ? $inputId.'-hint ' : '' }}{{ $inputId }}-error"
     @if ($error) aria-invalid="true" @endif

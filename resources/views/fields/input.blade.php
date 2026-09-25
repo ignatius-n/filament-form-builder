@@ -1,24 +1,31 @@
 @include('packstub-form-builder::fields._label')
+@php
+    $type = $field->type;
+    $inputType = method_exists($type, 'inputType') ? $type->inputType() : 'text';
+    $extra = method_exists($type, 'inputAttributes') ? $type->inputAttributes($field) : [];
+    $autocomplete = match ($type::id()) { 'email' => 'email', 'phone' => 'tel', 'url' => 'url', default => null };
+    $prefix = $type::id() === 'currency' ? $field->option('prefix') : null;
+    $suffix = $type::id() === 'currency' ? $field->option('suffix') : null;
+@endphp
+@if ($prefix || $suffix)
+<div class="fb-affix">
+    @if ($prefix)<span class="fb-affix__prefix">{{ $prefix }}</span>@endif
+@endif
 <input
     class="fb-input"
-    type="{{ $field->type->inputType() }}"
+    type="{{ $inputType }}"
     id="{{ $inputId }}"
     name="{{ $field->key }}"
     value="{{ is_scalar($value) ? $value : '' }}"
     @if ($field->placeholder) placeholder="{{ $field->placeholder }}" @endif
-    @if ($field->required) required aria-required="true" @endif
-    @if ($field->type::id() === 'number')
-        @if (filled($field->option('min'))) min="{{ $field->option('min') }}" @endif
-        @if (filled($field->option('max'))) max="{{ $field->option('max') }}" @endif
-        @if (filled($field->option('step'))) step="{{ $field->option('step') }}" @endif
-    @elseif ($field->type::id() === 'date')
-        @if (filled($field->option('min'))) min="{{ $field->option('min') }}" @endif
-        @if (filled($field->option('max'))) max="{{ $field->option('max') }}" @endif
-    @else
-        @if (filled($field->option('max_length'))) maxlength="{{ $field->option('max_length') }}" @endif
-    @endif
-    @if ($field->type::id() === 'email') autocomplete="email" @elseif ($field->type::id() === 'phone') autocomplete="tel" @endif
+    @if ($field->required && ! $field->isConditional()) required aria-required="true" @endif
+    @foreach ($extra as $attribute => $attributeValue) {{ $attribute }}="{{ $attributeValue }}" @endforeach
+    @if ($autocomplete) autocomplete="{{ $autocomplete }}" @endif
     aria-describedby="{{ $field->hint ? $inputId.'-hint ' : '' }}{{ $inputId }}-error"
     @if ($error) aria-invalid="true" @endif
 >
+@if ($prefix || $suffix)
+    @if ($suffix)<span class="fb-affix__suffix">{{ $suffix }}</span>@endif
+</div>
+@endif
 @include('packstub-form-builder::fields._hint')
