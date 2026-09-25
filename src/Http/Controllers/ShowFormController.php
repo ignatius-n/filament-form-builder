@@ -17,7 +17,7 @@ class ShowFormController
     {
         $form = FormBuilder::formModel()::query()->where('slug', $form)->firstOrFail();
 
-        if ($form->isPrivate() && ! $request->hasValidSignature(false)) {
+        if ($form->isPrivate() && ! $request->hasValidSignatureWhileIgnoring(['embed'])) {
             abort(403, __('packstub-form-builder::form-builder.frontend.private'));
         }
 

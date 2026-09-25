@@ -78,7 +78,7 @@ class CurrencyField extends NumberField
             return '';
         }
 
-        return trim((string) $field->option('prefix', '')).number_format((float) $value, $this->decimals($field)).' '.trim((string) $field->option('suffix', ''));
+        return trim(trim((string) $field->option('prefix', '')).number_format((float) $value, $this->decimals($field)).' '.trim((string) $field->option('suffix', '')));
     }
 
     public function formComponent(Field $field): Component

@@ -134,7 +134,7 @@ final class Conditions
         };
     }
 
-    public static function compare(string $operator, mixed $actual, mixed $expected): bool
+    public static function compare(string $operator, mixed $actual, mixed $expected = null): bool
     {
         $empty = $actual === null || $actual === '' || $actual === [] || $actual === false;
 

@@ -146,12 +146,26 @@ class FileField extends FieldType
         $accepted = $this->accepted($field);
         $rules = ['max:'.$this->maxKb($field)];
 
-        if ($accepted['extensions'] !== []) {
-            $rules[] = 'extensions:'.implode(',', $accepted['extensions']);
-        }
+        if ($accepted['extensions'] !== [] || $accepted['mimes'] !== []) {
+            $rules[] = function (string $attribute, mixed $value, \Closure $fail) use ($accepted): void {
+                if (! ($value instanceof UploadedFile)) {
+                    return;
+                }
 
-        if ($accepted['mimes'] !== []) {
-            $rules[] = 'mimetypes:'.implode(',', $accepted['mimes']);
+                $extension = strtolower($value->getClientOriginalExtension());
+                $mime = strtolower((string) $value->getMimeType());
+                $mimeOk = false;
+
+                foreach ($accepted['mimes'] as $pattern) {
+                    if (fnmatch($pattern, $mime)) {
+                        $mimeOk = true;
+                    }
+                }
+
+                if (! in_array($extension, $accepted['extensions'], true) && ! $mimeOk) {
+                    $fail(__('validation.mimes', ['attribute' => $attribute, 'values' => implode(', ', [...$accepted['extensions'], ...$accepted['mimes']])]));
+                }
+            };
         }
 
         // Livewire hands over stored paths; the browser and the JSON API hand over files.

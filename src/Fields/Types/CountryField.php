@@ -54,6 +54,16 @@ class CountryField extends SelectField
         return $choices === [] ? $all : $choices;
     }
 
+    public function view(): string
+    {
+        return 'packstub-form-builder::fields.select';
+    }
+
+    public function prepare(mixed $value, Field $field): mixed
+    {
+        return is_string($value) ? strtoupper(trim($value)) : $value;
+    }
+
     public function normalize(mixed $value, Field $field): mixed
     {
         $value = parent::normalize($value, $field);

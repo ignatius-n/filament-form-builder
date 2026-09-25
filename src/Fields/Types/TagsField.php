@@ -55,6 +55,11 @@ class TagsField extends FieldType
         return ['string', 'max:100'];
     }
 
+    public function prepare(mixed $value, Field $field): mixed
+    {
+        return $value === null || $value === '' ? null : $this->normalize($value, $field);
+    }
+
     public function comparableValue(mixed $value, Field $field): mixed
     {
         return $this->normalize($value, $field);

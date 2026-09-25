@@ -141,9 +141,14 @@ class Form extends Model
         $loose = collect();
         $index = 0;
 
-        $flush = function () use (&$loose, &$sections, &$index): void {
+        $flush = function () use (&$loose, &$sections, &$index, $registry): void {
             if ($loose->isNotEmpty()) {
-                $sections->push(new Section('section_'.(++$index), null, null, Conditions::always(), $loose, implicit: true));
+                $key = 'section_'.(++$index);
+                $fields = $loose
+                    ->map(fn (array $item): ?Field => Field::fromArray($item, $registry, $key))
+                    ->filter(fn (?Field $field): bool => $field !== null && ! $field->hidden)
+                    ->values();
+                $sections->push(new Section($key, null, null, Conditions::always(), $fields, implicit: true));
                 $loose = collect();
             }
         };
@@ -179,11 +184,7 @@ class Form extends Model
                 continue;
             }
 
-            $field = Field::fromArray($item, $registry);
-
-            if ($field !== null && ! $field->hidden) {
-                $loose->push($field);
-            }
+            $loose->push($item);
         }
 
         $flush();
