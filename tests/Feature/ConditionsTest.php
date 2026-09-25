@@ -2,7 +2,6 @@
 
 use Illuminate\Validation\ValidationException;
 use Packstub\FormBuilder\Fields\Conditions;
-use Packstub\FormBuilder\Models\Form;
 use Packstub\FormBuilder\Submissions\Submitter;
 
 it('compares values with every operator', function (): void {
@@ -52,24 +51,6 @@ it('combines rules with all or any and honours the mode', function (): void {
         ->and(Conditions::fromData(['visibility' => 'when'], 'visibility')->isAlways())->toBeTrue()
         ->and(Conditions::fromData(['visibility' => 'when'], 'visibility')->passes([]))->toBeTrue();
 });
-
-function conditionalForm(): Form
-{
-    return Form::query()->create([
-        'name' => 'Conditional',
-        'slug' => 'conditional',
-        'fields' => [
-            field('radio', 'Attendance', ['key' => 'attendance', 'choices' => ['in_person' => 'In person', 'virtual' => 'Virtual'], 'required' => true]),
-            field('select', 'T-shirt', ['key' => 'tshirt', 'choices' => ['s' => 'S', 'm' => 'M'], 'required' => true,
-                'visibility' => 'when', 'visibility_rules' => [['field' => 'attendance', 'operator' => 'equals', 'value' => 'in_person']]]),
-            field('text', 'Allergies', ['key' => 'allergies', 'required' => true,
-                'visibility' => 'when', 'visibility_rules' => [['field' => 'tshirt', 'operator' => 'is_not_empty']]]),
-            field('text', 'Company', ['key' => 'company', 'required' => true,
-                'requirement' => 'when', 'requirement_rules' => [['field' => 'attendance', 'operator' => 'equals', 'value' => 'virtual']]]),
-            field('text', 'Never', ['key' => 'never', 'hidden' => true, 'required' => true]),
-        ],
-    ]);
-}
 
 it('resolves visible fields with the cascade', function (): void {
     $form = conditionalForm();

@@ -25,6 +25,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -329,14 +330,18 @@ class SubmissionsRelationManager extends RelationManager
                                 : '<a href="'.e($url).'" class="fi-link" target="_blank" rel="noopener">'.e(Uploads::originalName($path)).'</a>';
                         }
 
-                        return $entry->state($links === [] ? '—' : new HtmlString(implode('<br>', $links)));
+                        return $entry->html()->state($links === [] ? '—' : new HtmlString(implode('<br>', $links)));
                     }
 
                     $display = $field->type->display($record->value($key), $field);
 
+                    if ($display instanceof Htmlable) {
+                        return $entry->html()->state(new HtmlString($display->toHtml()));
+                    }
+
                     return $entry
                         ->state($display === '' ? '—' : $display)
-                        ->copyable($display !== '' && is_string($display));
+                        ->copyable($display !== '');
                 })->values()->all()),
             Section::make(__('packstub-form-builder::form-builder.submissions.details'))
                 ->collapsed()

@@ -219,11 +219,11 @@ class FormBuilderForm extends Component implements HasForms
             return true;
         }
 
-        return function (Get $get) use ($model, $field): bool {
+        return function (Get $get) use ($model, $conditions, $field): bool {
             $values = $this->values($model, $get);
 
             return $field === null
-                ? true
+                ? $conditions->passes($values)
                 : in_array($field->key, $model->visibleKeys($values), true);
         };
     }

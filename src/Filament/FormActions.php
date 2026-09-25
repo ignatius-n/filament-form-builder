@@ -143,7 +143,16 @@ class FormActions
      */
     public static function previewDefinition(mixed $livewire): array
     {
-        $state = method_exists($livewire, 'getForm') ? ($livewire->getForm('form')?->getRawState() ?? []) : [];
+        $state = data_get($livewire, 'data');
+
+        if (! is_array($state)) {
+            try {
+                $state = $livewire->getSchema('form')?->getRawState() ?? [];
+            } catch (\Throwable) {
+                $state = [];
+            }
+        }
+
         $state = $state instanceof Arrayable ? $state->toArray() : (array) $state;
         $settings = is_array($state['settings'] ?? null) ? $state['settings'] : [];
 
